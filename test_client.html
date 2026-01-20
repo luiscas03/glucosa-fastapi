@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Audit Client - API Glucosa</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; max-width: 980px; }
+    label { display: block; margin-top: 12px; font-weight: 600; }
+    input, select, textarea { width: 100%; padding: 8px; margin-top: 6px; box-sizing: border-box; }
+    button { margin-top: 12px; padding: 10px 14px; cursor: pointer; }
+    pre { background: #f6f6f6; padding: 12px; overflow: auto; border-radius: 8px; }
+    .row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .hint { color: #666; font-size: 12px; margin-top: 6px; }
+    .card { border: 1px solid #e6e6e6; border-radius: 10px; padding: 14px; margin-top: 14px; }
+    .btns { display:flex; gap:10px; flex-wrap: wrap; align-items:center; }
+    details { margin-top: 10px; }
+    .small { font-size: 12px; color:#444; }
+    .ok { color:#0a7a2a; font-weight:600; }
+    .warn { color:#a15a00; font-weight:600; }
+  </style>
+</head>
+
+<body>
+  <h2>Audit Client - API Glucosa</h2>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>Base URL</label>
+        <input id="baseUrl" value="http://127.0.0.1:8000" />
+        <div class="hint">Tip: si Render duerme, primero haz <b>GET /health</b> para “despertar”.</div>
+      </div>
+      <div>
+        <label>API Key (X-API-Key)</label>
+        <input id="apiKey" placeholder="tu_api_key" />
+        <div class="hint">Si tu API no exige key en local, puedes dejarlo vacío.</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Método</label>
+        <select id="method">
+          <option>GET</option>
+          <option selected>POST</option>
+        </select>
+      </div>
+      <div>
+        <label>Endpoint</label>
+        <select id="endpoint">
+          <option value="/">/ (root)</option>
+          <option value="/health">/health</option>
+          <option value="/openapi.json">/openapi.json</option>
+          <option value="/predict" selected>/predict</option>
+          <option value="/api/v1/glucose/predict">/api/v1/glucose/predict</option>
+          <option value="/api/v1/ppg/measure">/api/v1/ppg/measure</option>
+        </select>
+        <div class="hint">Puedes cambiar el endpoint si lo necesitas.</div>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button id="btnRoot" type="button">GET / (root)</button>
+      <button id="btnHealth" type="button">GET /health</button>
+      <button id="btnOpenAPI" type="button">GET /openapi.json</button>
+      <button id="btnLoadSchema" type="button">Cargar esquema (desde /health)</button>
+    </div>
+
+    <details>
+      <summary><b>Modo POST (payload)</b> — formulario + campos extra</summary>
+
+      <div class="row">
+        <div>
+          <label>Payload base (numéricos)</label>
+          <div class="row">
+            <div><label>edad</label><input id="edad" type="number" value="45" /></div>
+            <div><label>peso</label><input id="peso" type="number" value="70" /></div>
+            <div><label>talla</label><input id="talla" type="number" value="165" /></div>
+            <div><label>tas</label><input id="tas" type="number" value="120" /></div>
+            <div><label>tad</label><input id="tad" type="number" value="80" /></div>
+            <div><label>imc (opcional)</label><input id="imc" type="number" step="0.01" placeholder="si lo envías, se usa; si no, se calcula" /></div>
+          </div>
+        </div>
+
+        <div>
+          <label>Payload categórico (opcional)</label>
+          <label>Categoria_Glucosa (si aplica)</label>
+          <select id="cat_glucosa">
+            <option value="">(vacío)</option>
+            <option>Normal</option>
+            <option>Prediabetes</option>
+            <option>Diabetes</option>
+          </select>
+
+          <details>
+            <summary><b>Campos extra (para reducir imputación)</b></summary>
+            <div class="small">Se envían tal cual. Si tu esquema real tiene otros nombres, usa “Generar campos extra desde esquema”.</div>
+
+            <div class="row">
+              <div><label>genero</label><input id="genero" placeholder="M/F/Otro" /></div>
+              <div><label>sexo</label><input id="sexo" placeholder="M/F" /></div>
+              <div><label>tipo_identificacion</label><input id="tipo_identificacion" placeholder="CC/TI/CE..." /></div>
+              <div><label>Municipio</label><input id="Municipio" placeholder="Cali..." /></div>
+              <div><label>EPS</label><input id="EPS" placeholder="SURA..." /></div>
+              <div><label>Regimen</label><input id="Regimen" placeholder="Contributivo..." /></div>
+              <div><label>regimen</label><input id="regimen" placeholder="(si tu modelo lo tiene en minúscula)" /></div>
+              <div><label>Zona_Residencia</label><input id="Zona_Residencia" placeholder="Urbana/Rural" /></div>
+              <div><label>ocupacion</label><input id="ocupacion" /></div>
+              <div><label>telefono</label><input id="telefono" /></div>
+              <div><label>realiza_ejercicio</label><input id="realiza_ejercicio" placeholder="Si/No" /></div>
+              <div><label>frecuencia_frutas</label><input id="frecuencia_frutas" placeholder="Diario/Semanal..." /></div>
+              <div><label>perimetro_abdominal</label><input id="perimetro_abdominal" type="number" step="0.1" /></div>
+              <div><label>puntaje_total</label><input id="puntaje_total" type="number" step="1" /></div>
+            </div>
+          </details>
+
+          <div class="btns">
+            <button id="btnGenExtraFromSchema" type="button">Generar campos extra desde esquema</button>
+            <button id="btnSendPredict" type="button">POST (usar método/endpoint seleccionados)</button>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <details>
+      <summary><b>PPG Measure</b> (POST /api/v1/ppg/measure)</summary>
+      <div class="small">Pega arrays 1D para r/g/b (misma longitud). Puedes generar uno sintético para evidencias.</div>
+
+      <label>fps</label>
+      <input id="ppg_fps" type="number" step="0.01" placeholder="ej: 30" />
+
+      <div class="row3">
+        <div><label>r (JSON array)</label><textarea id="ppg_r" rows="6" placeholder="[0.1, 0.2, ...]"></textarea></div>
+        <div><label>g (JSON array)</label><textarea id="ppg_g" rows="6" placeholder="[0.1, 0.2, ...]"></textarea></div>
+        <div><label>b (JSON array)</label><textarea id="ppg_b" rows="6" placeholder="[0.1, 0.2, ...]"></textarea></div>
+      </div>
+
+      <div class="btns">
+        <div id="ppgTools"></div>
+        <button id="btnSendPPG" type="button">POST /api/v1/ppg/measure</button>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h3>REQUEST</h3>
+    <pre id="reqOut">(vacío)</pre>
+  </div>
+
+  <div class="card">
+    <h3>RESPONSE</h3>
+    <pre id="resOut">(vacío)</pre>
+    <div id="statusLine" class="hint"></div>
+  </div>
+
+  <div class="card">
+    <h3>Esquema cargado (/health)</h3>
+    <pre id="schemaOut">(no cargado)</pre>
+  </div>
+
+<script>
+  const byId = (id) => document.getElementById(id);
+
+  const reqOut = byId("reqOut");
+  const resOut = byId("resOut");
+  const statusLine = byId("statusLine");
+  const schemaOut = byId("schemaOut");
+
+  let lastRequestObj = null;
+  let lastResponseObj = null;
+  let cachedSchema = null;
+
+  const cleanBase = () => byId("baseUrl").value.trim().replace(/\/$/, "");
+  const apiKeyVal = () => byId("apiKey").value.trim();
+
+  function addIf(obj, key, value) {
+    if (value === undefined || value === null) return;
+    if (typeof value === "number" && Number.isNaN(value)) return;
+    if (typeof value === "string" && value.trim() === "") return;
+    obj[key] = value;
+  }
+
+  function downloadJson(filename, obj) {
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function safeEndpointName(endpoint) {
+    const ep = (endpoint === "/" ? "root" : endpoint);
+    return ep.replace(/\//g, "_").replace(/^_/, "");
+  }
+
+  function renderPPGSummary(parsed) {
+    const summary = {
+      bpm: parsed?.bpm,
+      confidence: parsed?.confidence,
+      quality: parsed?.quality,
+      fps: parsed?.fps,
+      method: parsed?.method,
+      n_samples: Array.isArray(parsed?.signal) ? parsed.signal.length : null
+    };
+
+    let box = document.getElementById("ppgSummaryBox");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "ppgSummaryBox";
+      box.className = "card";
+      box.innerHTML = `<h3>PPG SUMMARY</h3><pre id="ppgSummary">(vacío)</pre>`;
+      document.body.insertBefore(box, document.querySelectorAll(".card")[1]);
+    }
+    document.getElementById("ppgSummary").textContent = JSON.stringify(summary, null, 2);
+
+    // evidencia ligera adicional
+    downloadJson("evidence_ppg_summary.json", summary);
+
+    // extra en status line
+    const q = summary.quality || {};
+    statusLine.innerHTML += ` — bpm=${summary.bpm}, conf=${summary.confidence}, snr_db=${q.snr_db}, motion_pct=${q.motion_pct}, valid=${q.valid}`;
+  }
+
+  async function callApi(method, endpoint, bodyObj = null) {
+    const base = cleanBase();
+    const apiKey = apiKeyVal();
+
+    const headers = {};
+    if (apiKey) headers["X-API-Key"] = apiKey;
+    if (method !== "GET") headers["Content-Type"] = "application/json";
+
+    const url = `${base}${endpoint}`;
+    const init = { method, headers };
+    if (method !== "GET" && bodyObj) init.body = JSON.stringify(bodyObj);
+
+    lastRequestObj = { url, method, headers, body: bodyObj };
+    reqOut.textContent = JSON.stringify(lastRequestObj, null, 2);
+
+    resOut.textContent = "Enviando...";
+    statusLine.textContent = "";
+
+    const res = await fetch(url, init);
+    const text = await res.text();
+    let parsed;
+    try { parsed = JSON.parse(text); } catch { parsed = text; }
+
+    lastResponseObj = { status: res.status, body: parsed };
+    resOut.textContent = JSON.stringify(lastResponseObj, null, 2);
+
+    // primero pinta OK/ERROR
+    statusLine.innerHTML = res.ok
+      ? `<span class="ok">OK</span> status=${res.status}`
+      : `<span class="warn">ERROR</span> status=${res.status}`;
+
+    // luego, si es PPG, agrega resumen (SIN pisarlo)
+    if (endpoint === "/api/v1/ppg/measure" && res.ok && parsed && typeof parsed === "object") {
+      renderPPGSummary(parsed);
+    }
+
+    // auto-evidencias (sanitiza api key)
+    if (res.ok) {
+      const safe = safeEndpointName(endpoint);
+
+      const safeReq = JSON.parse(JSON.stringify(lastRequestObj));
+      if (safeReq.headers && safeReq.headers["X-API-Key"]) {
+        safeReq.headers["X-API-Key"] = "<REDACTED>";
+      }
+
+      downloadJson(`evidence_${safe}_request.json`, safeReq);
+      downloadJson(`evidence_${safe}_response.json`, lastResponseObj);
+    }
+
+    return lastResponseObj;
+  }
+
+  function buildPredictPayloadFromForm() {
+    const payload = {};
+    addIf(payload, "edad", Number(byId("edad").value));
+    addIf(payload, "peso", Number(byId("peso").value));
+    addIf(payload, "talla", Number(byId("talla").value));
+    addIf(payload, "imc", Number(byId("imc").value));
+    addIf(payload, "tas", Number(byId("tas").value));
+    addIf(payload, "tad", Number(byId("tad").value));
+    addIf(payload, "Categoria_Glucosa", byId("cat_glucosa").value);
+
+    // extras
+    const extraIds = [
+      "genero","sexo","tipo_identificacion","Municipio","EPS","Regimen","regimen","Zona_Residencia",
+      "ocupacion","telefono","realiza_ejercicio","frecuencia_frutas"
+    ];
+    for (const id of extraIds) addIf(payload, id, byId(id).value);
+
+    addIf(payload, "perimetro_abdominal", Number(byId("perimetro_abdominal").value));
+    addIf(payload, "puntaje_total", Number(byId("puntaje_total").value));
+    return payload;
+  }
+
+  byId("btnRoot").addEventListener("click", () => callApi("GET", "/"));
+  byId("btnHealth").addEventListener("click", () => callApi("GET", "/health"));
+  byId("btnOpenAPI").addEventListener("click", () => callApi("GET", "/openapi.json"));
+
+  byId("btnLoadSchema").addEventListener("click", async () => {
+    const res = await callApi("GET", "/health");
+    cachedSchema = res;
+    schemaOut.textContent = JSON.stringify(res, null, 2);
+  });
+
+  byId("btnSendPredict").addEventListener("click", async () => {
+    const method = byId("method").value;
+    const endpoint = byId("endpoint").value;
+
+    if (method === "GET") return callApi("GET", endpoint);
+
+    const payload = buildPredictPayloadFromForm();
+    return callApi("POST", endpoint, payload);
+  });
+
+  byId("btnSendPPG").addEventListener("click", async () => {
+    const endpoint = "/api/v1/ppg/measure";
+    const fpsVal = byId("ppg_fps").value.trim();
+
+    let r, g, b;
+    try {
+      r = JSON.parse(byId("ppg_r").value || "[]");
+      g = JSON.parse(byId("ppg_g").value || "[]");
+      b = JSON.parse(byId("ppg_b").value || "[]");
+    } catch {
+      alert("r/g/b deben ser JSON arrays válidos.");
+      return;
+    }
+
+    if (!Array.isArray(r) || !Array.isArray(g) || !Array.isArray(b) || r.length === 0 || g.length === 0 || b.length === 0) {
+      alert("r/g/b deben ser arrays no vacíos.");
+      return;
+    }
+    if (!(r.length === g.length && g.length === b.length)) {
+      alert("r/g/b deben tener la MISMA longitud.");
+      return;
+    }
+
+    const payload = { r, g, b };
+    if (fpsVal !== "") payload.fps = Number(fpsVal);
+
+    return callApi("POST", endpoint, payload);
+  });
+
+  function fillSyntheticPPG(n = 600, fps = 30, hr = 75) {
+    // n=600 (20s) suele dar más estabilidad que 240 (8s)
+    const w = 2 * Math.PI * (hr / 60);
+    const r = [], g = [], b = [];
+    const noise = () => (Math.random() - 0.5) * 0.002; // menos ruido
+
+    for (let i = 0; i < n; i++) {
+      const t = i / fps;
+      const sig = 0.02 * Math.sin(w * t) + 0.006 * Math.sin(2 * w * t); // un poco más suave
+      r.push(Number((0.55 + 1.0 * sig + noise()).toFixed(4)));
+      g.push(Number((0.60 + 1.2 * sig + noise()).toFixed(4)));
+      b.push(Number((0.50 + 0.8 * sig + noise()).toFixed(4)));
+    }
+
+    byId("ppg_fps").value = String(fps);
+    byId("ppg_r").value = JSON.stringify(r);
+    byId("ppg_g").value = JSON.stringify(g);
+    byId("ppg_b").value = JSON.stringify(b);
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const tools = byId("ppgTools");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "Rellenar PPG sintético (600 samples ~20s)";
+    btn.addEventListener("click", () => fillSyntheticPPG(600, 30, 75));
+    tools.appendChild(btn);
+  });
+</script>
+
+</body>
+</html>

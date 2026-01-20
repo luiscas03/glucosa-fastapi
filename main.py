@@ -2,6 +2,7 @@
 
 
 from fastapi import FastAPI, HTTPException, Security, Body
+from fastapi.middleware.cors import CORSMiddleware
 
 
 from fastapi.security import APIKeyHeader
@@ -32,12 +33,14 @@ import math
 
 
 import json
+from dotenv import load_dotenv
 
 
 
 
 
 # ------------------------ Config / Logging ------------------------------------
+load_dotenv()
 
 
 logging.basicConfig(level=logging.INFO)
@@ -146,8 +149,6 @@ cat_cols: List[str] = []
 
 
 FEATURE_COLS: List[str] = []
-
-
 
 
 
@@ -572,6 +573,13 @@ async def get_api_key(incoming_key: str = Security(api_key_header)):
 
 app = FastAPI(title="API Glucosa RF", version="1.0")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 
 
@@ -633,6 +641,18 @@ def _iter_estimators(est):
 
 
 
+def _set_onehot_ignore_unknown():
+    try:
+        from sklearn.preprocessing import OneHotEncoder
+    except Exception:
+        return
+    if pipe is None:
+        return
+    for est in _iter_estimators(pipe):
+        if isinstance(est, OneHotEncoder):
+            est.handle_unknown = "ignore"
+
+
 def _patch_onehot_categories():
 
 
@@ -670,28 +690,10 @@ def _patch_onehot_categories():
 
 
                 for v in list(cats):
-
-
-                    if v is None:
-
-
-                        continue
-
-
-                    if isinstance(v, float) and math.isnan(v):
-
-
-                        continue
-
-
-                    cleaned.append(str(v))
-
-
-                if MISSING_TOKEN not in cleaned:
-
-
-                    cleaned.append(MISSING_TOKEN)
-
+                    if v is None or (isinstance(v, float) and math.isnan(v)):
+                        cleaned.append(MISSING_TOKEN)
+                    else:
+                        cleaned.append(str(v))
 
                 new_cats.append(np.array(cleaned, dtype=object))
 
@@ -725,24 +727,13 @@ def _patch_onehot_categories():
 
 def load_artifacts():
 
-
     from sklearn.compose import ColumnTransformer
-
 
     import sklearn, numpy as _np
 
-
-
-
-
     global pipe, num_cols, cat_cols, FEATURE_COLS
 
-
-
-
-
     # (Opcional) limitar hilos para evitar crashes nativos raros
-
 
     try:
 
@@ -909,14 +900,12 @@ def load_artifacts():
 
 
 
+
+    _set_onehot_ignore_unknown()
     # Parchear OHE para evitar isnan sobre objetos
 
 
-    _patch_onehot_categories()
-
-
-
-
+    #_patch_onehot_categories()
 
 # ------------------------ Schemas (endpoint estricto opcional) ----------------
 
