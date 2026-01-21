@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f172a">
+  <title>Glucose ML Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --ink: #0b1b1f;
+      --muted: #5f6b6f;
+      --card: #ffffff;
+      --ring: rgba(14, 116, 144, 0.2);
+      --brand: #0ea5a8;
+      --brand-strong: #0f766e;
+      --accent: #2563eb;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --bg-start: #f3f8f7;
+      --bg-end: #e6f6f3;
+    }
+
+    body {
+      font-family: 'Sora', sans-serif;
+      color: var(--ink);
+      background: radial-gradient(1100px 600px at 10% -20%, #d1fae5 0%, transparent 60%),
+                  radial-gradient(800px 500px at 90% 0%, #dbeafe 0%, transparent 55%),
+                  linear-gradient(135deg, var(--bg-start), var(--bg-end));
+      min-height: 100vh;
+    }
+
+    body.theme-dark {
+      --ink: #e2e8f0;
+      --muted: #94a3b8;
+      --card: #0f172a;
+      --ring: rgba(56, 189, 248, 0.25);
+      --brand: #22d3ee;
+      --brand-strong: #0891b2;
+      --accent: #38bdf8;
+      --warn: #fbbf24;
+      --danger: #fb7185;
+      --bg-start: #0b1120;
+      --bg-end: #111827;
+      background: radial-gradient(900px 500px at 10% -10%, rgba(14, 165, 233, 0.12), transparent 55%),
+                  radial-gradient(900px 500px at 90% 10%, rgba(34, 197, 94, 0.12), transparent 55%),
+                  linear-gradient(135deg, var(--bg-start), var(--bg-end));
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    body.theme-dark .card {
+      border-color: rgba(148, 163, 184, 0.2);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    .nav-btn {
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      background: rgba(148, 163, 184, 0.12);
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+
+    .nav-btn.active {
+      color: #ffffff;
+      background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+      box-shadow: 0 8px 20px rgba(14, 116, 144, 0.35);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.15);
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.error {
+      background: var(--danger);
+      box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.15);
+    }
+
+    .status-dot.loading {
+      background: var(--warn);
+      box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.15);
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(14, 116, 144, 0.12);
+      color: var(--brand-strong);
+    }
+
+    .btn {
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+      color: #ffffff;
+      box-shadow: 0 10px 25px rgba(14, 116, 144, 0.3);
+    }
+
+    .btn-secondary {
+      background: rgba(148, 163, 184, 0.15);
+      color: var(--ink);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--brand-strong);
+    }
+
+    .toggle-btn.active {
+      background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+      color: #ffffff;
+      border-color: transparent;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-green { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+    .badge-amber { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+    .badge-red { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+    .badge-blue { background: rgba(59, 130, 246, 0.15); color: #2563eb; }
+
+    .skeleton {
+      background: linear-gradient(90deg, rgba(148, 163, 184, 0.2), rgba(148, 163, 184, 0.35), rgba(148, 163, 184, 0.2));
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 10px;
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .timeline-line {
+      background: linear-gradient(180deg, rgba(14, 116, 144, 0.4), transparent);
+    }
+  </style>
+</head>
+<body class="antialiased">
+  <header class="fixed top-0 inset-x-0 z-30 backdrop-blur-xl bg-white/75 border-b border-white/40">
+    <div class="max-w-6xl mx-auto px-4 py-4">
+      <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-white font-bold">GM</div>
+            <div>
+              <h1 class="text-xl font-semibold">Glucose ML Monitor</h1>
+              <p class="text-sm text-slate-500">Dashboard de monitoreo clínico inteligente</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="flex items-center gap-2 px-3 py-2 rounded-full bg-white/80 border border-slate-200">
+              <span class="status-dot" id="header-status-dot"></span>
+              <span class="text-xs font-semibold" id="header-status-text">Conectando...</span>
+            </div>
+            <button class="btn btn-secondary" id="btnRefresh" aria-label="Actualizar estado">Actualizar</button>
+            <button class="btn btn-ghost" id="themeToggle" aria-label="Cambiar tema">Modo oscuro</button>
+          </div>
+        </div>
+        <nav class="flex flex-wrap gap-2" aria-label="Navegacion">
+          <button class="nav-btn active" data-screen="monitor" onclick="showScreen('monitor')" aria-selected="true">Monitor</button>
+          <button class="nav-btn" data-screen="measurement" onclick="showScreen('measurement')">Medicion</button>
+          <button class="nav-btn" data-screen="evaluation" onclick="showScreen('evaluation')">Eval ML</button>
+          <button class="nav-btn" data-screen="history" onclick="showScreen('history')">Historial</button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="pt-36 pb-16">
+    <div class="max-w-6xl mx-auto px-4">
+      <div id="global-alert" class="hidden mb-6 card px-4 py-3 border border-amber-200 bg-amber-50 text-amber-900"></div>
+
+      <section id="screen-monitor" class="screen active" aria-labelledby="tab-monitor">
+        <div class="grid gap-4 md:grid-cols-4">
+          <div class="card p-6 md:col-span-2">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-sm text-slate-500">Glucosa actual</p>
+                <div class="flex items-baseline gap-3">
+                  <span class="text-5xl font-semibold mono" id="main-glucose">137</span>
+                  <span class="text-sm text-slate-500">mg/dL</span>
+                </div>
+                <div class="mt-3 text-sm text-slate-500">Ultima actualizacion: <span id="last-update">Ahora</span></div>
+              </div>
+              <div class="chip">Estado estable</div>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-3">
+              <div class="p-3 rounded-xl bg-slate-50">
+                <p class="text-xs text-slate-500">SpO2</p>
+                <p class="text-lg font-semibold" id="spo2-display">98%</p>
+              </div>
+              <div class="p-3 rounded-xl bg-slate-50">
+                <p class="text-xs text-slate-500">FC</p>
+                <p class="text-lg font-semibold" id="fc-display">75 bpm</p>
+              </div>
+            </div>
+            <div class="mt-4 space-y-2" data-skeleton>
+              <div class="skeleton h-4 w-28"></div>
+              <div class="skeleton h-6 w-36"></div>
+            </div>
+            <div class="mt-4 flex items-center gap-3">
+              <span class="badge badge-green">Online</span>
+              <span class="text-xs text-slate-500">Sesion activa: <span id="session-duration">00:00</span></span>
+            </div>
+          </div>
+          <div class="card p-5">
+            <p class="text-xs text-slate-500">Actividad</p>
+            <p class="text-2xl font-semibold">Activa</p>
+            <p class="text-xs text-slate-500 mt-2">Seguimiento de movimiento en tiempo real.</p>
+          </div>
+          <div class="card p-5">
+            <p class="text-xs text-slate-500">Ultimo reporte</p>
+            <p class="text-2xl font-semibold mono">Hoy</p>
+            <p class="text-xs text-slate-500 mt-2">Sin alertas criticas.</p>
+          </div>
+        </div>
+
+        <div class="grid gap-4 mt-4 md:grid-cols-3">
+          <div class="card p-6 md:col-span-2">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-semibold" id="glucoseChartTitle">Tendencia de glucosa</h2>
+                <p class="text-xs text-slate-500">Historico de predicciones guardadas</p>
+              </div>
+              <span class="chip">Ultimas 24h</span>
+            </div>
+            <div class="mt-4">
+              <canvas id="glucoseChart" height="160"></canvas>
+              <div id="glucose-empty" class="mt-6 text-sm text-slate-500 text-center">Aun no hay datos. Ejecuta una evaluacion ML.</div>
+              <div class="mt-6" data-skeleton>
+                <div class="skeleton h-40 w-full"></div>
+              </div>
+            </div>
+            <div id="glucoseChartLegend" class="mt-4 flex flex-wrap gap-3 text-xs text-slate-500">
+              <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-400"></span>Normal (&lt;100)</span>
+              <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-400"></span>Prediabetes (100-125)</span>
+              <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-rose-400"></span>Diabetes (&gt;126)</span>
+            </div>
+          </div>
+          <div class="card p-6" id="activityTracker">
+            <div class="flex items-center justify-between">
+              <h3 class="text-base font-semibold">Actividad fisica</h3>
+              <span class="badge badge-green" id="activityStatusBadge">Activa</span>
+            </div>
+            <div class="mt-4 p-4 rounded-2xl bg-slate-50">
+              <div class="flex items-center justify-between text-xs text-slate-500">
+                <span>Pasos hoy</span>
+                <span>Meta 10,000</span>
+              </div>
+              <div class="mt-2">
+                <span class="text-3xl font-semibold" id="stepsCount">0</span>
+                <span class="text-xs text-slate-500">pasos</span>
+              </div>
+              <div class="mt-3 h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div class="h-full bg-emerald-500" id="stepsProgressBar" style="width: 0%"></div>
+              </div>
+              <div class="mt-3 flex justify-between text-xs text-slate-500">
+                <span>Calorias ~<span id="caloriesEstimate">0</span></span>
+                <span>Distancia ~<span id="distanceEstimate">0.00</span> km</span>
+              </div>
+            </div>
+            <div class="mt-4 p-4 rounded-2xl bg-slate-50">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-slate-500">Score de actividad</span>
+                <span class="badge badge-amber" id="activityLevelBadge">Sedentario</span>
+              </div>
+              <div class="mt-4 flex items-center gap-4">
+                <div class="relative w-20 h-20">
+                  <svg class="w-20 h-20 -rotate-90">
+                    <circle class="text-slate-200" cx="40" cy="40" r="34" stroke="currentColor" stroke-width="8" fill="none"></circle>
+                    <circle id="scoreCircleFill" cx="40" cy="40" r="34" stroke="#f59e0b" stroke-width="8" stroke-linecap="round" fill="none" stroke-dasharray="0 220"></circle>
+                  </svg>
+                  <div class="absolute inset-0 flex items-center justify-center text-lg font-semibold" id="activityScoreValue">0</div>
+                </div>
+                <div class="text-xs text-slate-500">
+                  <p id="activityFeedback">Intenta moverte mas para mejorar tu glucosa.</p>
+                  <p class="mt-2">La actividad fisica ayuda a reducir niveles de glucosa.</p>
+                </div>
+              </div>
+            </div>
+            <div class="mt-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+              <p class="text-xs font-semibold text-emerald-700">Impacto estimado en glucosa</p>
+              <p class="text-xs text-emerald-800 mt-2" id="glucoseImpactText">Con tu actividad actual, el impacto en glucosa es minimo.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid gap-4 mt-4 md:grid-cols-2">
+          <div class="card p-6">
+            <div class="flex items-center justify-between">
+              <h3 class="text-base font-semibold">Acelerometro</h3>
+              <span class="chip">Sensor</span>
+            </div>
+            <div class="mt-4">
+              <canvas id="accelChart" height="180"></canvas>
+            </div>
+          </div>
+          <div class="card p-6">
+            <div class="flex items-center justify-between">
+              <h3 class="text-base font-semibold">Giroscopio</h3>
+              <span class="chip">Sensor</span>
+            </div>
+            <div class="mt-4">
+              <canvas id="gyroChart" height="180"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="screen-measurement" class="screen" aria-labelledby="tab-measurement">
+        <div class="grid gap-6 md:grid-cols-2">
+          <div class="card p-6">
+            <h2 class="text-lg font-semibold">Medicion con camara</h2>
+            <p class="text-sm text-slate-500 mt-2">Sigue los pasos para obtener SpO2 y frecuencia cardiaca.</p>
+            <ol class="mt-4 space-y-3 text-sm">
+              <li class="flex items-start gap-3">
+                <span class="badge badge-blue">1</span>
+                <div>
+                  <p class="font-semibold">Permisos</p>
+                  <p class="text-slate-500">Permite acceso a la camara.</p>
+                </div>
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="badge badge-blue">2</span>
+                <div>
+                  <p class="font-semibold">Posicion del dedo</p>
+                  <p class="text-slate-500">Cubre la camara trasera y el flash.</p>
+                </div>
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="badge badge-blue">3</span>
+                <div>
+                  <p class="font-semibold">Captura</p>
+                  <p class="text-slate-500">Mantente quieto durante la captura.</p>
+                </div>
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="badge badge-blue">4</span>
+                <div>
+                  <p class="font-semibold">Resultado</p>
+                  <p class="text-slate-500">Guarda en historial si es correcto.</p>
+                </div>
+              </li>
+            </ol>
+            <div class="mt-4 text-xs text-slate-500">Funciona mejor en movil con flash.</div>
+          </div>
+          <div class="card p-6">
+            <div class="flex items-center justify-between">
+              <h3 class="text-base font-semibold">Vista previa</h3>
+              <span class="chip">Camara</span>
+            </div>
+            <video id="videoPreview" class="mt-4 w-full rounded-2xl bg-slate-900" autoplay playsinline style="display: none;"></video>
+            <div id="captureCountdown" class="mt-4 text-center" style="display: none;">
+              <div class="text-6xl font-semibold text-emerald-500" id="countdownNumber">10</div>
+              <p class="text-sm text-slate-500">Manteniendo el dedo en la camara...</p>
+              <div class="mt-3 h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div class="h-full bg-emerald-500" id="captureProgress" style="width: 0%"></div>
+              </div>
+            </div>
+            <div id="captureResults" class="mt-4" style="display: none;">
+              <div class="grid grid-cols-2 gap-4">
+                <div class="p-4 rounded-xl bg-slate-50 text-center">
+                  <div class="text-2xl font-semibold" id="measured-spo2">--</div>
+                  <div class="text-xs text-slate-500">SpO2 (%)</div>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-50 text-center">
+                  <div class="text-2xl font-semibold" id="measured-fc">--</div>
+                  <div class="text-xs text-slate-500">FC (bpm)</div>
+                </div>
+              </div>
+              <div class="mt-3 text-center text-xs text-slate-500">
+                <p>Calidad de senal: <strong class="text-emerald-600">Alta</strong></p>
+                <p id="measurement-time">--</p>
+              </div>
+            </div>
+            <div class="mt-4 grid gap-3">
+              <button class="btn btn-primary" id="btnStartCapture" onclick="startCapture()">Iniciar captura</button>
+              <button class="btn btn-secondary" id="btnSaveMeasurement" onclick="saveMeasurement()" style="display: none;">Guardar en historial</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="screen-evaluation" class="screen" aria-labelledby="tab-evaluation">
+        <div class="grid gap-6 md:grid-cols-[1.2fr_1fr]">
+          <div class="space-y-6">
+            <div class="card p-6">
+              <div class="flex items-center gap-3">
+                <span class="status-dot" id="api-status-dot"></span>
+                <div>
+                  <p class="text-xs text-slate-500" id="api-status-text">Verificando conexion...</p>
+                  <p class="text-xs text-slate-400">https://glucose-ml-monitor.onrender.com</p>
+                  <p class="text-xs text-emerald-600" id="api-models-text"></p>
+                </div>
+              </div>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <span class="chip">XGBoost</span>
+                <span class="chip">Random Forest</span>
+                <span class="chip">LightGBM</span>
+                <span class="chip">Gradient Boosting</span>
+                <span class="chip">Ridge</span>
+                <span class="chip">Lasso</span>
+                <span class="chip">ElasticNet</span>
+              </div>
+              <div class="mt-4">
+                <button class="btn btn-secondary" id="apiRetry" style="display: none;">Reintentar</button>
+              </div>
+            </div>
+
+            <form id="evaluationForm" class="card p-6 space-y-6">
+              <div>
+                <h2 class="text-base font-semibold">Datos personales</h2>
+                <div class="mt-4 grid gap-4 md:grid-cols-2">
+                  <label class="text-sm">
+                    <span class="text-slate-600">Edad *</span>
+                    <input type="number" id="edad" min="18" max="100" class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Ingrese su edad" required>
+                  </label>
+                  <label class="text-sm">
+                    <span class="text-slate-600">Sexo *</span>
+                    <select id="sexo" class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2" required>
+                      <option value="" disabled selected>Seleccione...</option>
+                      <option value="masculino">Masculino</option>
+                      <option value="femenino">Femenino</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <h2 class="text-base font-semibold">Datos antropometricos</h2>
+                <div class="mt-4 grid gap-4 md:grid-cols-2">
+                  <label class="text-sm">
+                    <span class="text-slate-600">Peso (kg) *</span>
+                    <input type="number" step="0.1" id="peso" class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Ej: 75.5" required>
+                  </label>
+                  <label class="text-sm">
+                    <span class="text-slate-600">Talla (m) *</span>
+                    <input type="number" step="0.01" id="talla" class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Ej: 1.70" required>
+                  </label>
+                  <label class="text-sm">
+                    <span class="text-slate-600">IMC (autocalculado)</span>
+                    <input type="number" step="0.1" id="imc" class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 bg-slate-50" readonly placeholder="Se calcula al ingresar peso/talla">
+                  </label>
+                  <label class="text-sm">
+                    <span class="text-slate-600">Perimetro cintura (cm) *</span>
+                    <input type="number" id="cintura" class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Ej: 90" required>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <h2 class="text-base font-semibold">Signos vitales</h2>
+                <div class="mt-4 grid gap-4 md:grid-cols-2">
+                  <label class="text-sm">
+                    <span class="text-slate-600">SpO2 (%)</span>
+                    <input type="number" id="eval-spo2" class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Ej: 98" min="80" max="100">
+                  </label>
+                  <label class="text-sm">
+                    <span class="text-slate-600">Frecuencia cardiaca (bpm)</span>
+                    <input type="number" id="eval-fc" class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Ej: 75" min="40" max="200">
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <h2 class="text-base font-semibold">Estilo de vida</h2>
+                <div class="mt-4 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p class="text-sm text-slate-600">Actividad fisica regular</p>
+                    <div class="mt-2 flex gap-2">
+                      <button type="button" class="btn btn-secondary toggle-btn" onclick="toggleOption(this, 'actividad', 'si')">Si</button>
+                      <button type="button" class="btn btn-secondary toggle-btn" onclick="toggleOption(this, 'actividad', 'no')">No</button>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="text-sm text-slate-600">Consumo diario de frutas</p>
+                    <div class="mt-2 flex gap-2">
+                      <button type="button" class="btn btn-secondary toggle-btn" onclick="toggleOption(this, 'frutas', 'si')">Si</button>
+                      <button type="button" class="btn btn-secondary toggle-btn" onclick="toggleOption(this, 'frutas', 'no')">No</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h2 class="text-base font-semibold">Antecedentes medicos</h2>
+                <div class="mt-4 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p class="text-sm text-slate-600">Hipertension</p>
+                    <div class="mt-2 flex gap-2">
+                      <button type="button" class="btn btn-secondary toggle-btn" onclick="toggleOption(this, 'hipertension', 'si')">Si</button>
+                      <button type="button" class="btn btn-secondary toggle-btn" onclick="toggleOption(this, 'hipertension', 'no')">No</button>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="text-sm text-slate-600">Diabetes diagnosticada</p>
+                    <div class="mt-2 flex gap-2">
+                      <button type="button" class="btn btn-secondary toggle-btn" onclick="toggleOption(this, 'diabetes', 'si')">Si</button>
+                      <button type="button" class="btn btn-secondary toggle-btn" onclick="toggleOption(this, 'diabetes', 'no')">No</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h2 class="text-base font-semibold">Evaluacion de riesgo</h2>
+                <label class="text-sm block mt-3">
+                  <span class="text-slate-600">Puntaje FINDRISC (0-26)</span>
+                  <input type="number" id="findrisc" min="0" max="26" class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Ej: 10" required>
+                </label>
+              </div>
+
+              <button type="submit" class="btn btn-primary" id="btnPredict">Predecir con modelos ML</button>
+            </form>
+          </div>
+
+          <div class="space-y-6">
+            <div class="card p-6">
+              <h3 class="text-base font-semibold">Estado de la prediccion</h3>
+              <div class="mt-3 text-sm text-slate-500" id="ml-status">Completa el formulario para iniciar la evaluacion.</div>
+              <div class="mt-4" id="ml-error" style="display: none;">
+                <div class="p-3 rounded-xl bg-rose-50 text-rose-700 text-sm" id="ml-error-text"></div>
+                <button class="btn btn-secondary mt-3" id="ml-retry">Reintentar</button>
+              </div>
+            </div>
+            <div class="card p-6">
+              <h3 class="text-base font-semibold">Guia rapida</h3>
+              <ul class="mt-3 text-sm text-slate-500 space-y-2">
+                <li>Ingresa datos reales para mayor precision.</li>
+                <li>Verifica conexion antes de predecir.</li>
+                <li>Guarda los resultados en historial.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="screen-results" class="screen" aria-labelledby="tab-results">
+        <div class="grid gap-6 md:grid-cols-[1.2fr_1fr]">
+          <div class="card p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-xs text-slate-500">Modelo mas acertado</p>
+                <h2 class="text-xl font-semibold" id="best-model-name">---</h2>
+              </div>
+              <span class="badge badge-blue" id="result-category">---</span>
+            </div>
+            <div class="mt-6 flex items-baseline gap-3">
+              <span class="text-5xl font-semibold mono" id="result-glucose">---<span class="text-lg"> mg/dL</span></span>
+            </div>
+            <div class="mt-4 grid gap-3 text-sm text-slate-500">
+              <div>Riesgo: <span class="font-semibold text-slate-700" id="result-risk">---</span></div>
+              <div>Confianza: <span class="font-semibold text-emerald-600" id="result-confidence">---</span></div>
+              <div>Rango de confianza: <span class="font-semibold text-slate-700" id="result-range">---</span></div>
+            </div>
+            <div class="mt-6 flex flex-wrap gap-3">
+              <button class="btn btn-primary" onclick="saveMLEvaluation()">Guardar en historial</button>
+              <button class="btn btn-secondary" onclick="showScreen('evaluation')">Nueva evaluacion</button>
+              <button class="btn btn-ghost" id="btnCopyResult">Copiar resultado</button>
+            </div>
+          </div>
+          <div class="space-y-6">
+            <div class="card p-6">
+              <h3 class="text-base font-semibold">Resumen del ensemble</h3>
+              <p class="text-sm text-slate-500 mt-2">Promedio ensemble:</p>
+              <p class="text-2xl font-semibold" id="ensemble-value">---</p>
+              <p class="text-xs text-slate-500 mt-3">Error esperado (MAE) ±8.2 mg/dL</p>
+            </div>
+            <div class="card p-6">
+              <h3 class="text-base font-semibold">Recomendacion</h3>
+              <p class="text-sm text-slate-500 mt-3" id="recommendation-text">---</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-6 mt-6">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-semibold">Predicciones por modelo</h3>
+            <span class="chip">Comparativo</span>
+          </div>
+          <div class="mt-4 overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="text-left text-slate-500">
+                <tr>
+                  <th class="py-2">Modelo</th>
+                  <th class="py-2">Valor</th>
+                  <th class="py-2">Estado</th>
+                </tr>
+              </thead>
+              <tbody id="predictions-table-body"></tbody>
+            </table>
+          </div>
+          <div class="mt-6">
+            <canvas id="modelsChart" height="200"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section id="screen-history" class="screen" aria-labelledby="tab-history">
+        <div class="grid gap-6 md:grid-cols-[1fr_2fr]">
+          <div class="space-y-4">
+            <div class="card p-6">
+              <h3 class="text-base font-semibold">Resumen</h3>
+              <div class="mt-4 grid gap-3">
+                <div class="p-4 rounded-xl bg-slate-50">
+                  <p class="text-xs text-slate-500">Total mediciones</p>
+                  <p class="text-2xl font-semibold" id="total-measurements">0</p>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-50">
+                  <p class="text-xs text-slate-500">Promedio glucosa</p>
+                  <p class="text-2xl font-semibold" id="avg-glucose">--</p>
+                </div>
+              </div>
+            </div>
+            <div class="card p-6">
+              <h3 class="text-base font-semibold">Filtros</h3>
+              <div class="mt-4 space-y-3">
+                <input type="text" id="history-search" class="w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Buscar por tipo o categoria">
+                <div class="grid gap-2">
+                  <input type="date" id="history-date-from" class="w-full rounded-xl border border-slate-200 px-3 py-2">
+                  <input type="date" id="history-date-to" class="w-full rounded-xl border border-slate-200 px-3 py-2">
+                </div>
+                <button class="btn btn-secondary" id="historyFilterBtn">Aplicar filtros</button>
+                <p class="text-xs text-slate-500">Los filtros son locales, sin conexion externa.</p>
+              </div>
+            </div>
+          </div>
+          <div class="card p-6">
+            <div class="flex items-center justify-between">
+              <h3 class="text-base font-semibold">Registros recientes</h3>
+              <button class="btn btn-secondary" onclick="exportHistoryCSV()">Exportar CSV</button>
+            </div>
+            <div class="mt-4" id="history-list">
+              <div class="text-center text-slate-500 py-10">
+                Sin registros aun. Realiza una medicion o evaluacion ML.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+<script>
+// ==================== CONFIGURACION API ====================
+const API_BASE_URL = 'https://glucose-ml-monitor.onrender.com';
+
+// ==================== VARIABLES GLOBALES ====================
+let currentScreen = 'monitor';
+let sessionStartTime = new Date();
+let sessionId = generateUUID();
+let historyData = [];
+let lastMLResult = null;
+let lastMeasurement = { spo2: 98, fc: 75 };
+
+let formData = {
+    actividad: '',
+    frutas: '',
+    hipertension: '',
+    diabetes: ''
+};
+
+let glucoseChart, accelChart, gyroChart, modelsChart;
+let accelData = { x: [], y: [], z: [], labels: [] };
+let gyroData = { alpha: [], beta: [], gamma: [], labels: [] };
+let sensorActive = { accel: false, gyro: false };
+
+let currentAccel = { x: 0, y: 0, z: 0 };
+let currentGyro = { alpha: 0, beta: 0, gamma: 0 };
+const MAX_SENSOR_POINTS = 50;
+const SENSOR_UPDATE_INTERVAL = 50;
+let ppgStream = null;
+
+const STEP_THRESHOLD = 1.2;
+const STEP_COOLDOWN = 300;
+let steps = 0;
+let activityScore = 0;
+let lastStepTime = 0;
+let accelHistory = [];
+let gyroHistory = [];
+const DAILY_STEP_GOAL = 10000;
+
+window.addEventListener('DOMContentLoaded', () => {
+    initializeApp();
+});
+
+function initializeApp() {
+    initCharts();
+    initSensors();
+    initActivityTracker();
+    checkAPIHealth();
+    updateSessionDuration();
+    loadHistoryFromStorage();
+
+    document.getElementById('peso').addEventListener('input', calculateIMC);
+    document.getElementById('talla').addEventListener('input', calculateIMC);
+
+    document.getElementById('evaluationForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        predictWithML();
+    });
+
+    const refreshBtn = document.getElementById('btnRefresh');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            checkAPIHealth();
+            updateCharts();
+        });
+    }
+
+    const retryBtn = document.getElementById('apiRetry');
+    if (retryBtn) {
+        retryBtn.addEventListener('click', checkAPIHealth);
+    }
+
+    const retryML = document.getElementById('ml-retry');
+    if (retryML) {
+        retryML.addEventListener('click', predictWithML);
+    }
+
+    const copyBtn = document.getElementById('btnCopyResult');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', copyResultToClipboard);
+    }
+
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        const savedTheme = localStorage.getItem('glucose_theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.add('theme-dark');
+            themeToggle.textContent = 'Modo claro';
+        }
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('theme-dark');
+            const isDark = document.body.classList.contains('theme-dark');
+            localStorage.setItem('glucose_theme', isDark ? 'dark' : 'light');
+            themeToggle.textContent = isDark ? 'Modo claro' : 'Modo oscuro';
+        });
+    }
+
+    const filterBtn = document.getElementById('historyFilterBtn');
+    if (filterBtn) {
+        filterBtn.addEventListener('click', applyHistoryFilters);
+    }
+
+    setTimeout(() => {
+        document.querySelectorAll('[data-skeleton]').forEach(el => el.classList.add('hidden'));
+    }, 800);
+}
+
+function showGlobalAlert(message) {
+    const alertBox = document.getElementById('global-alert');
+    if (!alertBox) return;
+    alertBox.textContent = message;
+    alertBox.classList.remove('hidden');
+    setTimeout(() => alertBox.classList.add('hidden'), 4000);
+}
+
+async function checkAPIHealth() {
+    const statusDot = document.getElementById('api-status-dot');
+    const statusText = document.getElementById('api-status-text');
+    const modelsText = document.getElementById('api-models-text');
+    const headerDot = document.getElementById('header-status-dot');
+    const headerText = document.getElementById('header-status-text');
+    const retryBtn = document.getElementById('apiRetry');
+
+    statusDot.className = 'status-dot loading';
+    statusText.textContent = 'Verificando conexion...';
+    if (headerDot) headerDot.className = 'status-dot loading';
+    if (headerText) headerText.textContent = 'Verificando...';
+    if (retryBtn) retryBtn.style.display = 'none';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/health`);
+        if (!response.ok) throw new Error('API Error');
+        const data = await response.json();
+        statusDot.className = 'status-dot';
+        statusText.textContent = 'Conectado a API';
+        modelsText.textContent = `Modelos cargados: ${data.models_loaded || 7}`;
+        if (headerDot) headerDot.className = 'status-dot';
+        if (headerText) headerText.textContent = 'Online';
+    } catch (error) {
+        statusDot.className = 'status-dot error';
+        statusText.textContent = 'Sin conexion a API';
+        modelsText.textContent = 'Error: ' + error.message;
+        if (headerDot) headerDot.className = 'status-dot error';
+        if (headerText) headerText.textContent = 'Offline';
+        if (retryBtn) retryBtn.style.display = 'inline-flex';
+        showGlobalAlert('No se pudo conectar con la API. Revisa tu conexion.');
+    }
+}
+
+function showScreen(screenName) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        const isActive = btn.dataset.screen === screenName;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    const target = document.getElementById('screen-' + screenName);
+    if (target) target.classList.add('active');
+    currentScreen = screenName;
+    if (screenName === 'monitor') {
+        updateCharts();
+    }
+}
+
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+function formatDateTime(date) {
+    const d = new Date(date);
+    const pad = (n) => n < 10 ? '0' + n : n;
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+function updateSessionDuration() {
+    setInterval(() => {
+        const diff = (Date.now() - sessionStartTime) / 1000;
+        document.getElementById('session-duration').textContent = formatTime(diff);
+        const mins = Math.floor((Date.now() - sessionStartTime) / 60000);
+        document.getElementById('last-update').textContent = mins > 0 ? 'Hace ' + mins + ' min' : 'Ahora';
+    }, 60000);
+    setInterval(updateActivityScore, 5000);
+}
+
+function initCharts() {
+    const ctxGlucose = document.getElementById('glucoseChart').getContext('2d');
+    glucoseChart = new Chart(ctxGlucose, {
+        type: 'line',
+        data: {
+            labels: ['Inicio'],
+            datasets: [{
+                label: 'Glucosa',
+                data: [137],
+                borderColor: '#0ea5a8',
+                backgroundColor: 'rgba(14, 165, 168, 0.15)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 5,
+                pointBackgroundColor: ['#0ea5a8']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: 'rgba(148, 163, 184, 0.2)' }, ticks: { color: '#64748b' } },
+                x: { grid: { display: false }, ticks: { color: '#64748b' } }
+            }
+        }
+    });
+
+    const ctxAccel = document.getElementById('accelChart').getContext('2d');
+    accelChart = new Chart(ctxAccel, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { label: 'X', data: [], borderColor: '#38bdf8', tension: 0.3 },
+                { label: 'Y', data: [], borderColor: '#22c55e', tension: 0.3 },
+                { label: 'Z', data: [], borderColor: '#f59e0b', tension: 0.3 }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { x: { display: false }, y: { display: false } }
+        }
+    });
+
+    const ctxGyro = document.getElementById('gyroChart').getContext('2d');
+    gyroChart = new Chart(ctxGyro, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { label: 'Alpha', data: [], borderColor: '#818cf8', tension: 0.3 },
+                { label: 'Beta', data: [], borderColor: '#f472b6', tension: 0.3 },
+                { label: 'Gamma', data: [], borderColor: '#34d399', tension: 0.3 }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { x: { display: false }, y: { display: false } }
+        }
+    });
+
+    updateGlucoseChartFromHistory();
+}
+
+function updateCharts() {
+    if (glucoseChart) glucoseChart.update();
+}
+
+function initSensors() {
+    const isIOS = typeof DeviceMotionEvent.requestPermission === 'function' ||
+                  typeof DeviceOrientationEvent.requestPermission === 'function';
+    if (isIOS) {
+        addIOSPermissionButton();
+    } else {
+        window.addEventListener('devicemotion', handleAccelerometer);
+        window.addEventListener('deviceorientation', handleGyroscope);
+        sensorActive.accel = true;
+        sensorActive.gyro = true;
+    }
+
+    setInterval(updateSensorCharts, SENSOR_UPDATE_INTERVAL);
+}
+
+function addIOSPermissionButton() {
+    const alertBox = document.getElementById('global-alert');
+    if (!alertBox) return;
+    alertBox.classList.remove('hidden');
+    alertBox.textContent = 'Permite sensores para mejorar mediciones.';
+    alertBox.insertAdjacentHTML('beforeend', ' <button class="btn btn-secondary" onclick="requestIOSPermission()">Permitir</button>');
+}
+
+async function requestIOSPermission() {
+    try {
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+            const response = await DeviceMotionEvent.requestPermission();
+            if (response === 'granted') {
+                window.addEventListener('devicemotion', handleAccelerometer);
+                sensorActive.accel = true;
+            }
+        }
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            const response = await DeviceOrientationEvent.requestPermission();
+            if (response === 'granted') {
+                window.addEventListener('deviceorientation', handleGyroscope);
+                sensorActive.gyro = true;
+            }
+        }
+        showGlobalAlert('Sensores activados.');
+    } catch (error) {
+        showGlobalAlert('No se pudieron activar los sensores.');
+    }
+}
+
+function handleAccelerometer(event) {
+    const x = event.accelerationIncludingGravity.x || 0;
+    const y = event.accelerationIncludingGravity.y || 0;
+    const z = event.accelerationIncludingGravity.z || 0;
+    currentAccel = { x, y, z };
+    detectStep(Math.sqrt(x * x + y * y + z * z));
+}
+
+function handleGyroscope(event) {
+    const alpha = event.alpha || 0;
+    const beta = event.beta || 0;
+    const gamma = event.gamma || 0;
+    currentGyro = { alpha, beta, gamma };
+}
+
+function updateSensorCharts() {
+    if (!sensorActive.accel && !sensorActive.gyro) return;
+
+    accelData.labels.push('');
+    accelData.x.push(currentAccel.x);
+    accelData.y.push(currentAccel.y);
+    accelData.z.push(currentAccel.z);
+
+    gyroData.labels.push('');
+    gyroData.alpha.push(currentGyro.alpha);
+    gyroData.beta.push(currentGyro.beta);
+    gyroData.gamma.push(currentGyro.gamma);
+
+    if (accelData.labels.length > MAX_SENSOR_POINTS) {
+        accelData.labels.shift();
+        accelData.x.shift();
+        accelData.y.shift();
+        accelData.z.shift();
+    }
+
+    if (gyroData.labels.length > MAX_SENSOR_POINTS) {
+        gyroData.labels.shift();
+        gyroData.alpha.shift();
+        gyroData.beta.shift();
+        gyroData.gamma.shift();
+    }
+
+    accelChart.data.labels = accelData.labels;
+    accelChart.data.datasets[0].data = accelData.x;
+    accelChart.data.datasets[1].data = accelData.y;
+    accelChart.data.datasets[2].data = accelData.z;
+    accelChart.update('none');
+
+    gyroChart.data.labels = gyroData.labels;
+    gyroChart.data.datasets[0].data = gyroData.alpha;
+    gyroChart.data.datasets[1].data = gyroData.beta;
+    gyroChart.data.datasets[2].data = gyroData.gamma;
+    gyroChart.update('none');
+}
+
+function initActivityTracker() {
+    steps = 0;
+    updateStepsUI();
+    updateActivityUI();
+}
+
+function detectStep(magnitude) {
+    const now = Date.now();
+    if (magnitude > STEP_THRESHOLD && (now - lastStepTime) > STEP_COOLDOWN) {
+        steps += 1;
+        lastStepTime = now;
+        updateStepsUI();
+        updateActivityScore();
+    }
+}
+
+function updateActivityScore() {
+    activityScore = Math.min(100, Math.round((steps / DAILY_STEP_GOAL) * 100));
+    updateActivityUI();
+}
+
+function getActivityLevel(score) {
+    if (score < 25) return 'Sedentario';
+    if (score < 50) return 'Ligero';
+    if (score < 75) return 'Moderado';
+    return 'Activo';
+}
+
+function getScoreColor(score) {
+    if (score < 25) return '#ef4444';
+    if (score < 50) return '#f59e0b';
+    if (score < 75) return '#fbbf24';
+    return '#22c55e';
+}
+
+function getFeedbackMessage(level) {
+    if (level === 'Sedentario') return 'Intenta moverte mas para mejorar tu glucosa.';
+    if (level === 'Ligero') return 'Buen inicio. Aumenta tu actividad diaria.';
+    if (level === 'Moderado') return 'Excelente ritmo. Mantente constante.';
+    return 'Nivel optimo. Sigue asi.';
+}
+
+function getGlucoseImpactMessage(stepCount) {
+    if (stepCount < 1000) return 'Impacto minimo. Considera una caminata corta.';
+    if (stepCount < 5000) return 'Impacto moderado. Sigue sumando actividad.';
+    return 'Impacto positivo. Buen control de glucosa.';
+}
+
+function updateStepsUI() {
+    document.getElementById('stepsCount').textContent = steps;
+    document.getElementById('caloriesEstimate').textContent = Math.round(steps * 0.04);
+    document.getElementById('distanceEstimate').textContent = (steps * 0.0008).toFixed(2);
+    const progress = Math.min(100, (steps / DAILY_STEP_GOAL) * 100);
+    document.getElementById('stepsProgressBar').style.width = progress + '%';
+}
+
+function updateActivityUI() {
+    const level = getActivityLevel(activityScore);
+    const color = getScoreColor(activityScore);
+    const badge = document.getElementById('activityLevelBadge');
+    badge.textContent = level;
+    badge.className = 'badge badge-amber';
+    document.getElementById('activityScoreValue').textContent = activityScore;
+    document.getElementById('scoreCircleFill').style.stroke = color;
+    document.getElementById('scoreCircleFill').setAttribute('stroke-dasharray', `${activityScore * 2.2} 220`);
+    document.getElementById('activityFeedback').textContent = getFeedbackMessage(level);
+    document.getElementById('glucoseImpactText').textContent = getGlucoseImpactMessage(steps);
+}
+
+async function startCapture() {
+    const video = document.getElementById('videoPreview');
+    document.getElementById('btnStartCapture').style.display = 'none';
+    document.getElementById('captureResults').style.display = 'none';
+    document.getElementById('captureCountdown').style.display = 'block';
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        ppgStream = stream;
+        video.srcObject = stream;
+        video.style.display = 'block';
+        startPPGCapture(video);
+    } catch (error) {
+        alert('No se pudo acceder a la camara.');
+        document.getElementById('btnStartCapture').style.display = 'block';
+        document.getElementById('captureCountdown').style.display = 'none';
+    }
+}
+
+function startPPGCapture(video) {
+    let countdown = 10;
+    const total = 10;
+    const progress = document.getElementById('captureProgress');
+    const countdownEl = document.getElementById('countdownNumber');
+
+    const timer = setInterval(() => {
+        countdown -= 1;
+        countdownEl.textContent = countdown;
+        const percent = ((total - countdown) / total) * 100;
+        progress.style.width = percent + '%';
+        if (countdown <= 0) {
+            clearInterval(timer);
+            completeCapture();
+        }
+    }, 1000);
+}
+
+function completeCapture() {
+    if (ppgStream) {
+        ppgStream.getTracks().forEach(track => track.stop());
+        ppgStream = null;
+    }
+    document.getElementById('videoPreview').style.display = 'none';
+    document.getElementById('captureCountdown').style.display = 'none';
+    document.getElementById('captureResults').style.display = 'block';
+    document.getElementById('btnSaveMeasurement').style.display = 'block';
+
+    lastMeasurement = { spo2: 98, fc: 75 };
+    document.getElementById('measured-spo2').textContent = lastMeasurement.spo2;
+    document.getElementById('measured-fc').textContent = lastMeasurement.fc;
+    document.getElementById('measurement-time').textContent = new Date().toLocaleTimeString();
+
+    document.getElementById('spo2-display').textContent = `${lastMeasurement.spo2}%`;
+    document.getElementById('fc-display').textContent = `${lastMeasurement.fc} bpm`;
+    document.getElementById('eval-spo2').value = lastMeasurement.spo2;
+    document.getElementById('eval-fc').value = lastMeasurement.fc;
+}
+
+function saveMeasurement() {
+    const measurement = {
+        id: generateUUID(),
+        type: 'measurement',
+        timestamp: new Date().toISOString(),
+        data: lastMeasurement
+    };
+
+    historyData.push(measurement);
+    saveHistoryToStorage();
+    updateHistoryDisplay();
+
+    showGlobalAlert('Medicion guardada en historial.');
+
+    document.getElementById('captureResults').style.display = 'none';
+    document.getElementById('btnSaveMeasurement').style.display = 'none';
+    document.getElementById('btnStartCapture').style.display = 'block';
+}
+
+function calculateIMC() {
+    const peso = parseFloat(document.getElementById('peso').value);
+    const talla = parseFloat(document.getElementById('talla').value);
+    if (peso && talla && talla > 0) {
+        const imc = (peso / (talla * talla)).toFixed(2);
+        document.getElementById('imc').value = imc;
+    }
+}
+
+function toggleOption(btn, field, value) {
+    btn.parentElement.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    formData[field] = value;
+}
+
+async function predictWithML() {
+    const btn = document.getElementById('btnPredict');
+    const statusEl = document.getElementById('ml-status');
+    const errorWrap = document.getElementById('ml-error');
+    const errorText = document.getElementById('ml-error-text');
+    btn.disabled = true;
+    btn.textContent = 'Consultando API...';
+    statusEl.textContent = 'Consultando API...';
+    errorWrap.style.display = 'none';
+
+    const payload = {
+        edad: parseInt(document.getElementById('edad').value) || 0,
+        sexo: document.getElementById('sexo').value || 'M',
+        peso: parseFloat(document.getElementById('peso').value) || 0,
+        talla: parseFloat(document.getElementById('talla').value) || 0,
+        imc: parseFloat(document.getElementById('imc').value) || 0,
+        perimetro_cintura: parseInt(document.getElementById('cintura').value) || 0,
+        spo2: parseInt(document.getElementById('eval-spo2').value) || 98,
+        frecuencia_cardiaca: parseInt(document.getElementById('eval-fc').value) || 75,
+        actividad_fisica: formData.actividad.toLowerCase(),
+        consumo_frutas: formData.frutas.toLowerCase(),
+        tiene_hipertension: formData.hipertension.toLowerCase(),
+        tiene_diabetes: formData.diabetes.toLowerCase(),
+        puntaje_findrisc: parseInt(document.getElementById('findrisc').value) || 0
+    };
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/predict`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorTextRaw = await response.text();
+            throw new Error(`API Error ${response.status}: ${errorTextRaw}`);
+        }
+
+        const result = await response.json();
+        lastMLResult = result;
+        displayMLResults(result);
+        showScreen('results');
+        statusEl.textContent = 'Prediccion completada.';
+    } catch (error) {
+        errorWrap.style.display = 'block';
+        errorText.textContent = 'Error al conectar con la API. ' + error.message;
+        statusEl.textContent = 'Error de conexion.';
+        showGlobalAlert('No disponible: verifica conexion o credenciales.');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Predecir con modelos ML';
+    }
+}
+
+function displayMLResults(result) {
+    const preds = result.predicciones_individuales || result.predicciones_por_modelo || {};
+    const ensembleValue = result.glucosa_predicha || result.prediccion_final || 0;
+
+    let bestModel = '';
+    let bestValue = ensembleValue;
+    let minDiff = Infinity;
+
+    if (preds && typeof preds === 'object' && Object.keys(preds).length > 0) {
+        for (const [name, val] of Object.entries(preds)) {
+            const diff = Math.abs(Number(val) - ensembleValue);
+            if (diff < minDiff) {
+                minDiff = diff;
+                bestModel = name;
+                bestValue = Number(val);
+            }
+        }
+    }
+
+    document.getElementById('best-model-name').textContent = bestModel || 'Ensemble';
+    document.getElementById('result-glucose').innerHTML = Math.round(bestValue) + '<span class="text-lg"> mg/dL</span>';
+
+    let categoria = 'Normal';
+    let riesgo = 'Bajo';
+    if (bestValue >= 126) {
+        categoria = 'Diabetes';
+        riesgo = 'Alto';
+    } else if (bestValue >= 100) {
+        categoria = 'Prediabetes';
+        riesgo = 'Moderado';
+    }
+
+    const categoryEl = document.getElementById('result-category');
+    categoryEl.textContent = categoria;
+    categoryEl.className = `badge ${categoria === 'Normal' ? 'badge-green' : categoria === 'Prediabetes' ? 'badge-amber' : 'badge-red'}`;
+
+    document.getElementById('result-risk').textContent = riesgo;
+    document.getElementById('result-confidence').textContent = result.confianza || result.confidence || 'Alta';
+
+    document.getElementById('main-glucose').textContent = Math.round(bestValue);
+    addCurrentPredictionToChart(Math.round(bestValue));
+
+    document.getElementById('ensemble-value').textContent = Math.round(ensembleValue) + ' mg/dL';
+
+    const rango = result.rango_confianza || result.intervalo_confianza;
+    if (typeof rango === 'string') {
+        document.getElementById('result-range').textContent = rango;
+    } else if (Array.isArray(rango)) {
+        document.getElementById('result-range').textContent = `${rango[0]} - ${rango[1]} mg/dL`;
+    } else if (rango && rango.min !== undefined) {
+        document.getElementById('result-range').textContent = `${rango.min} - ${rango.max} mg/dL`;
+    } else {
+        document.getElementById('result-range').textContent = 'N/A';
+    }
+
+    let recomendacion = result.recomendacion || '';
+    if (!recomendacion) {
+        if (categoria === 'Diabetes') {
+            recomendacion = 'Resultado compatible con diabetes. Consulta a un profesional de salud.';
+        } else if (categoria === 'Prediabetes') {
+            recomendacion = 'Prediabetes detectada. Refuerza actividad fisica y controla carbohidratos.';
+        } else {
+            recomendacion = 'Valores normales. Continua con habitos saludables.';
+        }
+    }
+    document.getElementById('recommendation-text').textContent = recomendacion;
+
+    createModelsChart(preds, bestModel);
+    renderPredictionsTable(preds, bestModel);
+
+    lastMLResult = {
+        ...result,
+        modelo_usado: bestModel,
+        valor_modelo: bestValue,
+        categoria: categoria
+    };
+}
+
+function renderPredictionsTable(preds, bestModel) {
+    const tbody = document.getElementById('predictions-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!preds || Object.keys(preds).length === 0) {
+        tbody.innerHTML = '<tr><td class="py-3 text-slate-500" colspan="3">No disponible</td></tr>';
+        return;
+    }
+
+    Object.entries(preds).forEach(([name, val]) => {
+        const isBest = name === bestModel;
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="py-2 font-medium">${name}</td>
+            <td class="py-2">${Number(val).toFixed(2)} mg/dL</td>
+            <td class="py-2">${isBest ? '<span class="badge badge-green">Principal</span>' : '<span class="badge badge-blue">Secundario</span>'}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function copyResultToClipboard() {
+    if (!lastMLResult) {
+        showGlobalAlert('No hay resultados para copiar.');
+        return;
+    }
+    const text = `Glucosa: ${lastMLResult.valor_modelo || lastMLResult.prediccion_final || '--'} mg/dL | Categoria: ${lastMLResult.categoria || '--'} | Modelo: ${lastMLResult.modelo_usado || '--'}`;
+    navigator.clipboard.writeText(text).then(() => {
+        showGlobalAlert('Resultado copiado.');
+    }).catch(() => {
+        showGlobalAlert('No se pudo copiar el resultado.');
+    });
+}
+
+function createModelsChart(predictions, bestModel) {
+    const ctx = document.getElementById('modelsChart').getContext('2d');
+
+    if (modelsChart) {
+        modelsChart.destroy();
+    }
+
+    const labels = Object.keys(predictions || {});
+    const dataValues = Object.values(predictions || {}).map(v => Number(v) || 0);
+
+    modelsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Predicciones',
+                data: dataValues,
+                backgroundColor: labels.map(label => label === bestModel ? '#22c55e' : '#60a5fa')
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#64748b' } },
+                y: { ticks: { color: '#64748b' } }
+            }
+        }
+    });
+}
+
+function saveMLEvaluation() {
+    if (!lastMLResult) {
+        showGlobalAlert('No hay evaluacion para guardar.');
+        return;
+    }
+
+    const evaluation = {
+        id: generateUUID(),
+        type: 'ml',
+        timestamp: new Date().toISOString(),
+        data: lastMLResult
+    };
+
+    historyData.push(evaluation);
+    saveHistoryToStorage();
+    updateHistoryDisplay();
+    showGlobalAlert('Evaluacion guardada en historial.');
+}
+
+function updateGlucoseChartFromHistory() {
+    if (!glucoseChart) return;
+
+    const mlEvaluations = historyData
+        .filter(item => item.type === 'ml' && item.data)
+        .slice(-7);
+
+    const emptyState = document.getElementById('glucose-empty');
+
+    if (mlEvaluations.length === 0) {
+        const currentGlucose = parseInt(document.getElementById('main-glucose').textContent) || 137;
+        glucoseChart.data.labels = ['Inicio'];
+        glucoseChart.data.datasets[0].data = [currentGlucose];
+        glucoseChart.data.datasets[0].pointBackgroundColor = ['#0ea5a8'];
+        if (emptyState) emptyState.style.display = 'block';
+    } else {
+        const labels = mlEvaluations.map((item, idx) => `Eval ${idx + 1}`);
+        const dataValues = mlEvaluations.map(item => item.data.valor_modelo || item.data.prediccion_final || 0);
+        const pointColors = dataValues.map(value => value < 100 ? '#22c55e' : value < 126 ? '#f59e0b' : '#f43f5e');
+        glucoseChart.data.labels = labels;
+        glucoseChart.data.datasets[0].data = dataValues;
+        glucoseChart.data.datasets[0].pointBackgroundColor = pointColors;
+        if (emptyState) emptyState.style.display = 'none';
+    }
+
+    glucoseChart.update();
+}
+
+function addCurrentPredictionToChart(value) {
+    if (!glucoseChart) return;
+    glucoseChart.data.labels.push('Actual');
+    glucoseChart.data.datasets[0].data.push(value);
+    glucoseChart.update();
+}
+
+function clearCurrentPrediction() {
+    if (!glucoseChart) return;
+    glucoseChart.data.labels.pop();
+    glucoseChart.data.datasets[0].data.pop();
+    glucoseChart.update();
+}
+
+function loadHistoryFromStorage() {
+    const stored = localStorage.getItem('glucose_history');
+    if (stored) {
+        historyData = JSON.parse(stored);
+        updateHistoryDisplay();
+    }
+}
+
+function saveHistoryToStorage() {
+    localStorage.setItem('glucose_history', JSON.stringify(historyData));
+}
+
+function applyHistoryFilters() {
+    updateHistoryDisplay();
+}
+
+function updateHistoryDisplay() {
+    const list = document.getElementById('history-list');
+    const search = document.getElementById('history-search');
+    const dateFrom = document.getElementById('history-date-from');
+    const dateTo = document.getElementById('history-date-to');
+
+    let filtered = [...historyData];
+
+    if (search && search.value.trim()) {
+        const term = search.value.trim().toLowerCase();
+        filtered = filtered.filter(item => JSON.stringify(item.data).toLowerCase().includes(term) || item.type.includes(term));
+    }
+
+    if (dateFrom && dateFrom.value) {
+        filtered = filtered.filter(item => item.timestamp >= dateFrom.value);
+    }
+
+    if (dateTo && dateTo.value) {
+        filtered = filtered.filter(item => item.timestamp <= dateTo.value + 'T23:59:59');
+    }
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<div class="text-center text-slate-500 py-10">Sin registros para los filtros seleccionados.</div>';
+        document.getElementById('total-measurements').textContent = historyData.length;
+        document.getElementById('avg-glucose').textContent = '--';
+        return;
+    }
+
+    document.getElementById('total-measurements').textContent = historyData.length;
+
+    const glucoseValues = historyData
+        .filter(item => item.type === 'ml' && item.data)
+        .map(item => item.data.valor_modelo || item.data.prediccion_final || 0)
+        .filter(v => v);
+
+    if (glucoseValues.length > 0) {
+        const avg = (glucoseValues.reduce((a, b) => a + b, 0) / glucoseValues.length).toFixed(1);
+        document.getElementById('avg-glucose').textContent = avg;
+    }
+
+    const recent = filtered.slice(-10).reverse();
+    list.innerHTML = recent.map(item => {
+        const label = item.type === 'ml' ? 'Evaluacion ML' : 'Medicion';
+        const value = item.type === 'ml'
+            ? (item.data.valor_modelo || item.data.prediccion_final || '--')
+            : (item.data.spo2 ? `SpO2 ${item.data.spo2}` : '--');
+        return `
+            <div class="flex items-center justify-between border-b border-slate-100 py-3">
+              <div>
+                <p class="text-sm font-semibold">${label}</p>
+                <p class="text-xs text-slate-500">${formatDateTime(item.timestamp)}</p>
+              </div>
+              <div class="text-sm font-semibold">${value}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function exportHistoryCSV() {
+    if (historyData.length === 0) {
+        showGlobalAlert('No hay historial para exportar.');
+        return;
+    }
+
+    let csv = 'Tipo,Fecha,Detalle\n';
+    historyData.forEach(item => {
+        const detail = item.type === 'ml'
+            ? (item.data.valor_modelo || item.data.prediccion_final || '')
+            : (item.data.spo2 || '');
+        csv += `${item.type},${item.timestamp},${detail}\n`;
+    });
+
+    downloadFile(csv, 'historial_glucose_ml.csv', 'text/csv');
+}
+
+function downloadFile(content, filename, type) {
+    const blob = new Blob([content], { type });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+</script>
+</body>
+</html>

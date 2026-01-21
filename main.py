@@ -69,7 +69,7 @@ MODEL_PATH = os.getenv("MODEL_PATH", "assets/models/root/modelo_gradient_boostin
 
 API_KEY = os.getenv("API_KEY")
 
-MONITOR_BASE_DIR = Path(__file__).resolve().parent / "glucose-ml-monitor-main"
+MONITOR_INDEX_PATH = Path(__file__).resolve().parent / "static" / "index.html"
 MONITOR_MODELS_DIR = Path(__file__).resolve().parent / "assets" / "models" / "monitor"
 MONITOR_MODEL_FILES = {
     "xgboost": MONITOR_MODELS_DIR / "XGBoost.joblib",
@@ -602,10 +602,9 @@ app.add_middleware(
 
 @app.get("/", include_in_schema=False)
 def root():
-    index_path = MONITOR_BASE_DIR / "index.html"
-    if not index_path.exists():
+    if not MONITOR_INDEX_PATH.exists():
         raise HTTPException(status_code=404, detail="index.html no encontrado")
-    return FileResponse(index_path)
+    return FileResponse(MONITOR_INDEX_PATH)
 
 
 
@@ -934,10 +933,6 @@ def load_monitor_models():
     monitor_feature_names = None
     monitor_ready = False
 
-    if not MONITOR_BASE_DIR.exists():
-        logger.warning(f"No se encontró {MONITOR_BASE_DIR}; monitor deshabilitado.")
-        return
-
     try:
         if not MONITOR_PREPROCESSING_FILE.exists():
             logger.warning(f"Preprocesamiento no encontrado: {MONITOR_PREPROCESSING_FILE}")
@@ -1196,10 +1191,9 @@ def monitor_health():
 
 @app.get("/monitor")
 def monitor_index():
-    index_path = MONITOR_BASE_DIR / "index.html"
-    if not index_path.exists():
+    if not MONITOR_INDEX_PATH.exists():
         raise HTTPException(status_code=404, detail="index.html no encontrado")
-    return FileResponse(index_path)
+    return FileResponse(MONITOR_INDEX_PATH)
 
 
 @app.get("/monitor/models")

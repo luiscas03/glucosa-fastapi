@@ -2,7 +2,6 @@
 /env
 /venv
 /.venv
-glucose-ml-monitor-main/*
 
 # Archivos de configuración local que contienen secretos
 .env
