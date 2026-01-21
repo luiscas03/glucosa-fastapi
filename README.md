@@ -75,13 +75,9 @@ La configuración de la aplicación se gestiona a través de un archivo `.env`.
 
 2.  Abre el archivo `.env` y edita las variables:
     ```dotenv
-    # Ruta al modelo de Machine Learning
-    MODEL_PATH=RF_GlucosaMujeres.joblib
-
     # Clave secreta para proteger el endpoint de predicción
     API_KEY="TU_CLAVE_SECRETA_AQUI"
     ```
-    - **`MODEL_PATH`**: Asegúrate de que tu modelo (`.joblib`) se encuentre en la ruta especificada.
     - **`API_KEY`**: Genera una clave secreta y segura.
 
 ## Ejecutar la Aplicación
@@ -100,6 +96,17 @@ Una vez que el servidor esté en marcha, verás un mensaje como este:
 `INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)`
 
 Puedes acceder a la documentación interactiva en http://127.0.0.1:8000/docs.
+
+## Monitor ML (glucose-ml-monitor-main)
+
+El servidor principal ahora también carga los modelos de `glucose-ml-monitor-main`.
+
+- **UI**: `GET /monitor` sirve `glucose-ml-monitor-main/index.html`
+- **Health**: `GET /monitor/health`
+- **Modelos cargados**: `GET /monitor/models`
+- **Predicción ensemble**: `POST /monitor/predict` (protegido por `X-API-Key`)
+
+Si `glucose-ml-monitor-main/` o sus modelos no existen, el monitor se marca como `not_ready`.
 
 ##  Uso de la API
 

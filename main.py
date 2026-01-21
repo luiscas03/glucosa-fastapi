@@ -3,6 +3,7 @@
 
 from fastapi import FastAPI, HTTPException, Security, Body
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 
 from fastapi.security import APIKeyHeader
@@ -33,6 +34,8 @@ import math
 
 
 import json
+from datetime import datetime
+from pathlib import Path
 from dotenv import load_dotenv
 
 
@@ -61,14 +64,23 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
 
 
 
-MODEL_PATH = os.getenv("MODEL_PATH", "modelo_gradient_boosting_2.joblib")
+MODEL_PATH = os.getenv("MODEL_PATH", "assets/models/root/modelo_gradient_boosting_2.joblib")
 
 
 API_KEY = os.getenv("API_KEY")
 
-
-
-
+MONITOR_BASE_DIR = Path(__file__).resolve().parent / "glucose-ml-monitor-main"
+MONITOR_MODELS_DIR = Path(__file__).resolve().parent / "assets" / "models" / "monitor"
+MONITOR_MODEL_FILES = {
+    "xgboost": MONITOR_MODELS_DIR / "XGBoost.joblib",
+    "random_forest": MONITOR_MODELS_DIR / "Random_Forest.joblib",
+    "lightgbm": MONITOR_MODELS_DIR / "LightGBM.joblib",
+    "gradient_boosting": MONITOR_MODELS_DIR / "Gradient_Boosting.joblib",
+    "ridge": MONITOR_MODELS_DIR / "Ridge.joblib",
+    "lasso": MONITOR_MODELS_DIR / "Lasso.joblib",
+    "elasticnet": MONITOR_MODELS_DIR / "ElasticNet.joblib",
+}
+MONITOR_PREPROCESSING_FILE = MONITOR_MODELS_DIR / "preprocessing_objects.pkl"
 
 MISSING_TOKEN = "__MISSING__"
 
@@ -150,7 +162,11 @@ cat_cols: List[str] = []
 
 FEATURE_COLS: List[str] = []
 
-
+monitor_models: Dict[str, Any] = {}
+monitor_label_encoders: Dict[str, Any] = {}
+monitor_scaler = None
+monitor_feature_names: Optional[List[str]] = None
+monitor_ready = False
 
 # ------------------------ Utils ----------------------------------------------
 
@@ -907,6 +923,53 @@ def load_artifacts():
 
     #_patch_onehot_categories()
 
+
+@app.on_event("startup")
+def load_monitor_models():
+    global monitor_models, monitor_label_encoders, monitor_scaler
+    global monitor_feature_names, monitor_ready
+
+    monitor_models = {}
+    monitor_label_encoders = {}
+    monitor_scaler = None
+    monitor_feature_names = None
+    monitor_ready = False
+
+    if not MONITOR_BASE_DIR.exists():
+        logger.warning(f"No se encontró {MONITOR_BASE_DIR}; monitor deshabilitado.")
+        return
+
+    try:
+        if not MONITOR_PREPROCESSING_FILE.exists():
+            logger.warning(f"Preprocesamiento no encontrado: {MONITOR_PREPROCESSING_FILE}")
+            return
+
+        preprocessing = joblib.load(MONITOR_PREPROCESSING_FILE)
+        monitor_label_encoders = preprocessing.get("label_encoders", {})
+        monitor_scaler = preprocessing.get("scaler", None)
+        monitor_feature_names = preprocessing.get("feature_names", None)
+
+        models_loaded = 0
+        for model_name, model_path in MONITOR_MODEL_FILES.items():
+            if not model_path.exists():
+                logger.warning(f"Modelo monitor no encontrado: {model_path}")
+                continue
+            try:
+                monitor_models[model_name] = joblib.load(model_path)
+                models_loaded += 1
+                logger.info(f"Modelo monitor cargado: {model_name}")
+            except Exception as e:
+                logger.error(f"Error al cargar {model_name}: {e}")
+
+        if models_loaded == 0:
+            logger.warning("No se pudo cargar ningun modelo monitor.")
+            return
+
+        monitor_ready = True
+        logger.info(f"Monitor listo: {models_loaded}/7 modelos cargados.")
+    except Exception as e:
+        logger.error(f"Error cargando modelos monitor: {e}", exc_info=True)
+
 # ------------------------ Schemas (endpoint estricto opcional) ----------------
 
 
@@ -984,6 +1047,60 @@ class PPGMeasureRequest(BaseModel):
 
     class Config:
         extra = "allow"
+# ------------------------ Monitor Schemas ------------------------------------
+
+
+class MonitorPredictionInput(BaseModel):
+    edad: int = Field(..., ge=18, le=120)
+    sexo: str
+    peso: float = Field(..., gt=0)
+    talla: float = Field(..., gt=0)
+    imc: Optional[float] = None
+    perimetro_cintura: float = Field(..., gt=0)
+    spo2: int = Field(..., ge=70, le=100)
+    frecuencia_cardiaca: int = Field(..., ge=40, le=200)
+    actividad_fisica: str
+    consumo_frutas: str
+    tiene_hipertension: str
+    tiene_diabetes: str
+    puntaje_findrisc: int = Field(..., ge=0, le=26)
+
+
+def monitor_preprocess_input(data: MonitorPredictionInput) -> pd.DataFrame:
+    imc_value = data.imc if data.imc is not None else (data.peso / (data.talla ** 2))
+    input_dict = {
+        "Edad": data.edad,
+        "Sexo": data.sexo.lower().capitalize(),
+        "Peso": data.peso,
+        "Talla": data.talla,
+        "IMC": imc_value,
+        "Perimetro_Cintura": data.perimetro_cintura,
+        "SpO2": data.spo2,
+        "Frecuencia_Cardiaca": data.frecuencia_cardiaca,
+        "Actividad_Fisica": data.actividad_fisica.lower().capitalize(),
+        "Consumo_Frutas": data.consumo_frutas.lower().capitalize(),
+        "Tiene_Hipertension": data.tiene_hipertension.lower().capitalize(),
+        "Tiene_Diabetes": data.tiene_diabetes.lower().capitalize(),
+        "Puntaje_FINDRISC": data.puntaje_findrisc,
+    }
+
+    for col, encoder in monitor_label_encoders.items():
+        if col in input_dict:
+            try:
+                input_dict[col] = encoder.transform([input_dict[col]])[0]
+            except ValueError:
+                input_dict[col] = 0
+
+    if monitor_feature_names is not None:
+        df = pd.DataFrame([{col: input_dict.get(col, 0) for col in monitor_feature_names}])
+    else:
+        df = pd.DataFrame([input_dict])
+
+    if monitor_scaler is not None:
+        X_scaled = monitor_scaler.transform(df)
+        return pd.DataFrame(X_scaled, columns=df.columns)
+    return df
+
 # ------------------------ Endpoints ------------------------------------------
 
 
@@ -1014,7 +1131,34 @@ def health():
     }
 
 
+@app.get("/monitor/health")
+def monitor_health():
+    return {
+        "status": "ready" if monitor_ready else "not_ready",
+        "timestamp": datetime.now().isoformat(),
+        "models_loaded": len(monitor_models),
+        "models_available": list(monitor_models.keys()),
+        "feature_names_loaded": monitor_feature_names is not None,
+    }
 
+
+@app.get("/monitor")
+def monitor_index():
+    index_path = MONITOR_BASE_DIR / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=404, detail="index.html no encontrado")
+    return FileResponse(index_path)
+
+
+@app.get("/monitor/models")
+def monitor_models_list():
+    if not monitor_ready:
+        raise HTTPException(status_code=503, detail="Monitor no disponible")
+    return {
+        "models": list(monitor_models.keys()),
+        "total": len(monitor_models),
+        "feature_names": monitor_feature_names,
+    }
 
 
 # Tolerante (recomendado para ManyChat)
@@ -1079,6 +1223,69 @@ def predict_v1(payload: Dict[str, Any] = Body(...)):
 @app.post("/api/v1/glucose/predict_typed", dependencies=[Security(get_api_key)])
 def predict_v1_typed(item: PredictItem):
     return predict(item.model_dump())
+
+
+@app.post("/monitor/predict", dependencies=[Security(get_api_key)])
+def monitor_predict(data: MonitorPredictionInput):
+    if not monitor_ready:
+        raise HTTPException(status_code=503, detail="Monitor no disponible")
+
+    try:
+        X_preprocessed = monitor_preprocess_input(data)
+
+        predicciones_individuales = {}
+        predicciones_validas = []
+
+        for model_name, model in monitor_models.items():
+            try:
+                pred = model.predict(X_preprocessed)[0]
+                predicciones_individuales[model_name] = float(pred)
+                predicciones_validas.append(pred)
+            except Exception:
+                predicciones_individuales[model_name] = None
+
+        if len(predicciones_validas) == 0:
+            raise HTTPException(status_code=500, detail="Ningun modelo pudo predecir")
+
+        prediccion_final = float(np.mean(predicciones_validas))
+
+        if prediccion_final < 100:
+            categoria = "Normal"
+        elif prediccion_final < 126:
+            categoria = "Prediabetes"
+        else:
+            categoria = "Diabetes"
+
+        std_predicciones = float(np.std(predicciones_validas))
+        confidence = 1.0 - (std_predicciones / prediccion_final) if prediccion_final > 0 else 0.5
+        confidence = max(0.0, min(1.0, confidence))
+
+        intervalo_min = prediccion_final - 1.96 * std_predicciones
+        intervalo_max = prediccion_final + 1.96 * std_predicciones
+
+        mejor_modelo = min(
+            [(k, v) for k, v in predicciones_individuales.items() if v is not None],
+            key=lambda x: abs(x[1] - prediccion_final),
+        )[0]
+
+        return {
+            "prediccion_final": round(prediccion_final, 2),
+            "categoria": categoria,
+            "predicciones_individuales": {
+                k: round(v, 2) if v is not None else None
+                for k, v in predicciones_individuales.items()
+            },
+            "confidence": round(confidence, 3),
+            "intervalo_confianza": [round(intervalo_min, 2), round(intervalo_max, 2)],
+            "mejor_modelo": mejor_modelo,
+            "timestamp": datetime.now().isoformat(),
+            "input_data": data.model_dump(),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error en /monitor/predict: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error en prediccion: {e}")
 
 
 @app.post("/api/v1/ppg/measure", dependencies=[Security(get_api_key)])

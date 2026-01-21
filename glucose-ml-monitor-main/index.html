@@ -1,0 +1,2501 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1E1E1E">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Glucose ML Monitor v2.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            background: #1E1E1E;
+            color: #FFFFFF;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .screen {
+            display: none;
+            min-height: 100vh;
+            padding: 20px;
+            padding-bottom: 80px;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        .header {
+            background: #2C2C2C;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00FF00;
+        }
+
+        .session-badge {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00FF00;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
+        .glucose-main {
+            text-align: center;
+            background: #2C2C2C;
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+
+        .glucose-value {
+            font-size: 72px;
+            font-weight: bold;
+            color: #00FF00;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .glucose-unit {
+            font-size: 24px;
+            color: #B0B0B0;
+        }
+
+        .indicators {
+            display: flex;
+            justify-content: space-around;
+            margin: 15px 0;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .indicator {
+            font-size: 14px;
+            color: #B0B0B0;
+        }
+
+        .indicator strong {
+            color: #FFFFFF;
+        }
+
+        .chart-container {
+            background: #2C2C2C;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            height: 300px;
+            position: relative;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #00FF00;
+        }
+
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .footer-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #2C2C2C;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            padding: 10px;
+            gap: 8px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+        }
+
+        .nav-btn {
+            background: #333333;
+            border: none;
+            color: #FFFFFF;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:active, .nav-btn.active {
+            transform: scale(0.95);
+            background: #4CAF50;
+        }
+
+        .btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            transition: all 0.3s;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+            background: #45a049;
+        }
+
+        .btn-primary {
+            background: #00FF00;
+            color: #1E1E1E;
+        }
+
+        .btn-secondary {
+            background: #666666;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #B0B0B0;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            background: #333333;
+            border: 1px solid #444444;
+            border-radius: 8px;
+            color: #FFFFFF;
+            font-size: 16px;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #00FF00;
+        }
+
+        .toggle-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 12px;
+            background: #333333;
+            border: 2px solid #444444;
+            border-radius: 8px;
+            color: #FFFFFF;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .toggle-btn.active {
+            background: #4CAF50;
+            border-color: #4CAF50;
+        }
+
+        .card {
+            background: #2C2C2C;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+        }
+
+        .model-badge {
+            display: inline-block;
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin: 5px;
+        }
+
+        .result-main {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .result-value {
+            font-size: 64px;
+            font-weight: bold;
+            color: #00FF00;
+        }
+
+        .category-badge {
+            display: inline-block;
+            padding: 10px 25px;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+
+        .category-normal { background: #4CAF50; color: white; }
+        .category-prediabetes { background: #FFC107; color: #1E1E1E; }
+        .category-diabetes { background: #F44336; color: white; }
+
+        .timeline {
+            position: relative;
+            padding-left: 40px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #444444;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #2C2C2C;
+            border-radius: 8px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -32px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #00FF00;
+            border: 2px solid #1E1E1E;
+        }
+
+        .timeline-time {
+            font-size: 12px;
+            color: #00FF00;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .timeline-desc {
+            margin-top: 5px;
+            color: #B0B0B0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #2C2C2C;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #00FF00;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #B0B0B0;
+            margin-top: 5px;
+        }
+
+        .video-preview {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            background: #000000;
+            border-radius: 12px;
+            margin: 20px auto;
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #333333;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #00FF00;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .api-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: #2C2C2C;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.error {
+            background: #F44336;
+        }
+
+        .status-dot.loading {
+            background: #FFC107;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .recommendation {
+            background: rgba(255, 193, 7, 0.1);
+            border-left: 4px solid #FFC107;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #333333;
+            border-top: 4px solid #00FF00;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .history-item {
+            background: #2C2C2C;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-date {
+            font-size: 12px;
+            color: #B0B0B0;
+        }
+
+        .history-data {
+            font-size: 16px;
+            font-weight: bold;
+            color: #00FF00;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .badge-ml {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00FF00;
+        }
+
+        .badge-spo2 {
+            background: rgba(33, 150, 243, 0.2);
+            color: #2196F3;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 20px 0 15px 0;
+            color: #00FF00;
+        }
+
+        /* Activity Tracker Styles */
+        .activity-card {
+            background: #2C2C2C;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .activity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .activity-title {
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .activity-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .activity-badge.active {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+
+        .steps-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .steps-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #B0B0B0;
+        }
+
+        .steps-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #00FF00;
+        }
+
+        .steps-unit {
+            font-size: 14px;
+            color: #B0B0B0;
+            margin-left: 5px;
+        }
+
+        .steps-progress {
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .steps-progress-fill {
+            height: 100%;
+            background: #00FF00;
+            transition: width 0.3s;
+        }
+
+        .steps-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #B0B0B0;
+        }
+
+        .score-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .score-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .score-level-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .score-level-badge.sedentario { background: rgba(244, 67, 54, 0.2); color: #F44336; }
+        .score-level-badge.ligero { background: rgba(255, 152, 0, 0.2); color: #FF9800; }
+        .score-level-badge.moderado { background: rgba(255, 235, 59, 0.2); color: #FFC107; }
+        .score-level-badge.activo { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+        .score-level-badge.muy_activo { background: rgba(0, 230, 118, 0.2); color: #00E676; }
+
+        .score-display {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .score-circle {
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+
+        .score-circle svg {
+            transform: rotate(-90deg);
+        }
+
+        .score-circle-bg {
+            fill: none;
+            stroke: #333;
+            stroke-width: 8;
+        }
+
+        .score-circle-fill {
+            fill: none;
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dasharray 0.5s, stroke 0.3s;
+        }
+
+        .score-number {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .score-feedback {
+            flex: 1;
+            font-size: 13px;
+            color: #B0B0B0;
+        }
+
+        .score-feedback p {
+            margin-bottom: 5px;
+        }
+
+        .glucose-impact {
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(0, 230, 118, 0.1));
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .glucose-impact-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #4CAF50;
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .glucose-impact p {
+            font-size: 12px;
+            color: #B0B0B0;
+        }
+
+        .model-chart-container {
+            height: 400px;
+        }
+
+        @media (max-width: 600px) {
+            .glucose-value {
+                font-size: 56px;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+            
+            .sensor-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- PANTALLA 1: MONITOR PRINCIPAL -->
+<div id="screen-monitor" class="screen active">
+    <div class="header">
+        <h1>🩸 Glucose ML Monitor</h1>
+        <div class="session-badge">🟢 Sesión: <span id="session-duration">00:00</span></div>
+    </div>
+
+    <div class="glucose-main">
+        <div class="glucose-value"><span id="main-glucose">137</span><span class="glucose-unit">mg/dL</span></div>
+        <div style="color: #B0B0B0; margin-top: 10px;">Última actualización: <span id="last-update">Ahora</span></div>
+    </div>
+
+    <div class="indicators">
+        <div class="indicator">SpO2: <strong id="spo2-display">98%</strong></div>
+        <div class="indicator">FC: <strong id="fc-display">75 bpm</strong></div>
+        <div class="indicator">Actividad: <strong>🏃 ACTIVO</strong></div>
+    </div>
+
+    <div class="chart-container">
+        <div class="chart-title" id="glucoseChartTitle">📈 Glucosa (Historial)</div>
+        <canvas id="glucoseChart"></canvas>
+        <div id="glucoseChartLegend" class="chart-legend" style="display: flex; justify-content: center; gap: 15px; margin-top: 10px; font-size: 11px;">
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 12px; height: 12px; border-radius: 50%; background: #00FF00;"></div>
+                <span style="color: #B0B0B0;">Normal (&lt;100)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 12px; height: 12px; border-radius: 50%; background: #FFD700;"></div>
+                <span style="color: #B0B0B0;">Prediabetes (100-125)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 12px; height: 12px; border-radius: 50%; background: #FF4444;"></div>
+                <span style="color: #B0B0B0;">Diabetes (&gt;126)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ACTIVITY TRACKER -->
+    <div class="activity-card" id="activityTracker">
+        <div class="activity-header">
+            <div class="activity-title">🏃 Actividad Física</div>
+            <div class="activity-badge active" id="activityStatusBadge">🟢 Activo</div>
+        </div>
+
+        <!-- Contador de Pasos -->
+        <div class="steps-container">
+            <div class="steps-header">
+                <span>Pasos hoy</span>
+                <span>Meta: 10,000</span>
+            </div>
+            <div>
+                <span class="steps-value" id="stepsCount">0</span>
+                <span class="steps-unit">pasos</span>
+            </div>
+            <div class="steps-progress">
+                <div class="steps-progress-fill" id="stepsProgressBar" style="width: 0%"></div>
+            </div>
+            <div class="steps-stats">
+                <span>🔥 ~<span id="caloriesEstimate">0</span> cal</span>
+                <span>📏 ~<span id="distanceEstimate">0.00</span> km</span>
+            </div>
+        </div>
+
+        <!-- Score de Actividad -->
+        <div class="score-container">
+            <div class="score-header">
+                <span style="font-size: 14px; color: #B0B0B0;">Score de Actividad</span>
+                <span class="score-level-badge sedentario" id="activityLevelBadge">🪑 Sedentario</span>
+            </div>
+            <div class="score-display">
+                <div class="score-circle">
+                    <svg width="80" height="80">
+                        <circle class="score-circle-bg" cx="40" cy="40" r="35"></circle>
+                        <circle class="score-circle-fill" id="scoreCircleFill" cx="40" cy="40" r="35" 
+                            stroke="#F44336" stroke-dasharray="0 220"></circle>
+                    </svg>
+                    <div class="score-number" id="activityScoreValue">0</div>
+                </div>
+                <div class="score-feedback">
+                    <p id="activityFeedback">💡 Intenta moverte más para mejorar tu glucosa</p>
+                    <p style="font-size: 11px; opacity: 0.7;">La actividad física ayuda a reducir los niveles de glucosa</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Impacto en Glucosa -->
+        <div class="glucose-impact">
+            <div class="glucose-impact-header">
+                <span>📊</span>
+                <span>Impacto Estimado en Glucosa</span>
+            </div>
+            <p id="glucoseImpactText">Con tu actividad actual, el impacto en glucosa es mínimo. Más movimiento = mejor control.</p>
+        </div>
+    </div>
+
+    <div class="sensor-grid">
+        <div class="chart-container">
+            <div class="chart-title">📱 Acelerómetro (m/s²)</div>
+            <canvas id="accelChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <div class="chart-title">🔄 Giroscopio (°/s)</div>
+            <canvas id="gyroChart"></canvas>
+        </div>
+    </div>
+
+    <div class="footer-nav">
+        <button class="nav-btn active" onclick="showScreen('monitor')">📊<br>Monitor</button>
+        <button class="nav-btn" onclick="showScreen('measurement')">📸<br>Medición</button>
+        <button class="nav-btn" onclick="showScreen('evaluation')">🧬<br>Eval ML</button>
+        <button class="nav-btn" onclick="showScreen('history')">📋<br>Historial</button>
+    </div>
+</div>
+
+<!-- PANTALLA 2: NUEVA MEDICIÓN -->
+<div id="screen-measurement" class="screen">
+    <div class="header">
+        <button class="btn-secondary" onclick="showScreen('monitor')" style="background: none; border: none; color: #00FF00; cursor: pointer;">← Volver</button>
+        <h1>📸 Nueva Medición</h1>
+    </div>
+
+    <div class="card">
+        <h3>Medición de SpO2 y Frecuencia Cardíaca</h3>
+        <p style="color: #B0B0B0; margin: 10px 0;">Coloca tu dedo sobre la cámara trasera y el flash</p>
+        
+        <video id="videoPreview" class="video-preview" autoplay playsinline style="display: none;"></video>
+        
+        <div id="captureCountdown" style="text-align: center; padding: 40px; display: none;">
+            <div style="font-size: 72px; font-weight: bold; color: #00FF00;" id="countdownNumber">10</div>
+            <div style="color: #B0B0B0;">Manteniendo el dedo en la cámara...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="captureProgress"></div>
+            </div>
+        </div>
+
+        <div id="captureResults" style="display: none;">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="measured-spo2">--</div>
+                    <div class="stat-label">SpO2 (%)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="measured-fc">--</div>
+                    <div class="stat-label">FC (bpm)</div>
+                </div>
+            </div>
+            <div style="text-align: center; color: #B0B0B0;">
+                <p>Calidad de señal: <strong style="color: #4CAF50;">Alta</strong></p>
+                <p id="measurement-time">--</p>
+            </div>
+        </div>
+
+        <button class="btn btn-primary" id="btnStartCapture" onclick="startCapture()">📸 INICIAR CAPTURA</button>
+        <button class="btn" id="btnSaveMeasurement" onclick="saveMeasurement()" style="display: none;">💾 Guardar en Historial</button>
+    </div>
+
+    <div class="footer-nav">
+        <button class="nav-btn" onclick="showScreen('monitor')">📊<br>Monitor</button>
+        <button class="nav-btn active" onclick="showScreen('measurement')">📸<br>Medición</button>
+        <button class="nav-btn" onclick="showScreen('evaluation')">🧬<br>Eval ML</button>
+        <button class="nav-btn" onclick="showScreen('history')">📋<br>Historial</button>
+    </div>
+</div>
+
+<!-- PANTALLA 3: EVALUACIÓN ML -->
+<div id="screen-evaluation" class="screen">
+    <div class="header">
+        <button class="btn-secondary" onclick="showScreen('monitor')" style="background: none; border: none; color: #00FF00; cursor: pointer;">← Volver</button>
+        <h1>🧬 Evaluación ML</h1>
+    </div>
+
+    <div class="api-status">
+        <div class="status-dot" id="api-status-dot"></div>
+        <div style="flex: 1;">
+            <div style="font-size: 12px; color: #B0B0B0;" id="api-status-text">Verificando conexión...</div>
+            <div style="font-size: 10px; color: #666;">https://glucose-ml-monitor.onrender.com</div>
+            <div style="font-size: 10px; color: #00FF00;" id="api-models-text"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-bottom: 15px;">7 Modelos ML Disponibles</h3>
+        <span class="model-badge">✅ XGBoost</span>
+        <span class="model-badge">✅ RandomForest</span>
+        <span class="model-badge">✅ LightGBM</span>
+        <span class="model-badge">✅ GradientBoosting</span>
+        <span class="model-badge">✅ Ridge</span>
+        <span class="model-badge">✅ Lasso</span>
+        <span class="model-badge">✅ ElasticNet</span>
+    </div>
+
+    <form id="evaluationForm">
+        <div class="section-title">📋 DATOS PERSONALES</div>
+        <div class="form-group">
+            <label>Edad *</label>
+            <input type="number" id="edad" min="18" max="100" placeholder="Ingrese su edad" required>
+        </div>
+        <div class="form-group">
+            <label>Sexo *</label>
+            <select id="sexo" required>
+                <option value="" disabled selected>Seleccione...</option>
+                <option value="masculino">Masculino</option>
+                <option value="femenino">Femenino</option>
+            </select>
+        </div>
+
+        <div class="section-title">⚖️ DATOS ANTROPOMÉTRICOS</div>
+        <div class="form-group">
+            <label>Peso (kg) *</label>
+            <input type="number" step="0.1" id="peso" placeholder="Ej: 75.5" required>
+        </div>
+        <div class="form-group">
+            <label>Talla (m) *</label>
+            <input type="number" step="0.01" id="talla" placeholder="Ej: 1.70" required>
+        </div>
+        <div class="form-group">
+            <label>IMC (calculado automáticamente)</label>
+            <input type="number" step="0.1" id="imc" readonly style="background: #4d4d00;" placeholder="Se calcula al ingresar peso/talla">
+        </div>
+        <div class="form-group">
+            <label>Perímetro Cintura (cm) *</label>
+            <input type="number" id="cintura" placeholder="Ej: 90" required>
+        </div>
+
+        <div class="section-title">💓 SIGNOS VITALES (de medición)</div>
+        <div class="form-group">
+            <label>SpO2 (%) - Ingrese valor de su medición</label>
+            <input type="number" id="eval-spo2" placeholder="Ej: 98" min="80" max="100">
+        </div>
+        <div class="form-group">
+            <label>Frecuencia Cardíaca (bpm) - Ingrese valor de su medición</label>
+            <input type="number" id="eval-fc" placeholder="Ej: 75" min="40" max="200">
+        </div>
+
+        <div class="section-title">🏃 ESTILO DE VIDA</div>
+        <div class="form-group">
+            <label>Actividad Física Regular</label>
+            <div class="toggle-group">
+                <button type="button" class="toggle-btn" onclick="toggleOption(this, 'actividad', 'si')">✅ Sí</button>
+                <button type="button" class="toggle-btn" onclick="toggleOption(this, 'actividad', 'no')">❌ No</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Consumo Diario de Frutas/Verduras</label>
+            <div class="toggle-group">
+                <button type="button" class="toggle-btn" onclick="toggleOption(this, 'frutas', 'si')">✅ Sí</button>
+                <button type="button" class="toggle-btn" onclick="toggleOption(this, 'frutas', 'no')">❌ No</button>
+            </div>
+        </div>
+
+        <div class="section-title">🏥 ANTECEDENTES MÉDICOS</div>
+        <div class="form-group">
+            <label>¿Tiene Hipertensión?</label>
+            <div class="toggle-group">
+                <button type="button" class="toggle-btn" onclick="toggleOption(this, 'hipertension', 'si')">Sí</button>
+                <button type="button" class="toggle-btn" onclick="toggleOption(this, 'hipertension', 'no')">No</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>¿Tiene Diabetes Diagnosticada?</label>
+            <div class="toggle-group">
+                <button type="button" class="toggle-btn" onclick="toggleOption(this, 'diabetes', 'si')">Sí</button>
+                <button type="button" class="toggle-btn" onclick="toggleOption(this, 'diabetes', 'no')">No</button>
+            </div>
+        </div>
+
+        <div class="section-title">📊 EVALUACIÓN DE RIESGO</div>
+        <div class="form-group">
+            <label>Puntaje FINDRISC (0-26)</label>
+            <input type="number" id="findrisc" min="0" max="26" placeholder="Ej: 10" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="btnPredict">🧬 PREDECIR CON 7 MODELOS ML</button>
+    </form>
+
+    <div class="footer-nav">
+        <button class="nav-btn" onclick="showScreen('monitor')">📊<br>Monitor</button>
+        <button class="nav-btn" onclick="showScreen('measurement')">📸<br>Medición</button>
+        <button class="nav-btn active" onclick="showScreen('evaluation')">🧬<br>Eval ML</button>
+        <button class="nav-btn" onclick="showScreen('history')">📋<br>Historial</button>
+    </div>
+</div>
+
+<!-- PANTALLA 4: RESULTADOS ML -->
+<div id="screen-results" class="screen">
+    <div class="header">
+        <button class="btn-secondary" onclick="showScreen('evaluation')" style="background: none; border: none; color: #00FF00; cursor: pointer;">← Volver</button>
+        <h1>📊 Resultados ML</h1>
+    </div>
+
+    <div class="result-main">
+        <div style="font-size: 14px; color: #B0B0B0; margin-bottom: 5px;">⭐ Modelo Más Acertado</div>
+        <div style="font-size: 24px; font-weight: bold; color: #00FF00; margin-bottom: 10px;" id="best-model-name">---</div>
+        <div class="result-value" id="result-glucose">---<span style="font-size: 32px;"> mg/dL</span></div>
+        <div class="category-badge category-prediabetes" id="result-category">---</div>
+        <div style="margin-top: 15px;">
+            <span style="color: #B0B0B0;">Riesgo: </span>
+            <strong style="color: #FFC107;" id="result-risk">---</strong>
+        </div>
+        <div style="margin-top: 10px;">
+            <span style="color: #B0B0B0;">Confianza: </span>
+            <strong style="color: #4CAF50;" id="result-confidence">---</strong>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📊 Métricas del Análisis</h3>
+        <p style="color: #B0B0B0; margin: 10px 0;">Promedio Ensemble (7 modelos): <strong style="color: #FFF;" id="ensemble-value">---</strong></p>
+        <p style="color: #B0B0B0; margin: 10px 0;">Error Esperado (MAE): <strong style="color: #FFF;">± 8.2 mg/dL</strong></p>
+        <p style="color: #B0B0B0; margin: 10px 0;">Rango de Confianza: <strong style="color: #FFF;" id="result-range">---</strong></p>
+    </div>
+
+    <div class="chart-container model-chart-container">
+        <div class="chart-title">🤖 Otros Modelos ML</div>
+        <canvas id="modelsChart"></canvas>
+    </div>
+
+    <div class="recommendation">
+        <h4 style="color: #FFC107; margin-bottom: 10px;">💡 Recomendación</h4>
+        <p id="recommendation-text">---</p>
+    </div>
+
+    <button class="btn" onclick="saveMLEvaluation()">💾 Guardar en Historial</button>
+    <button class="btn btn-secondary" onclick="showScreen('evaluation')">🔄 Nueva Evaluación</button>
+
+    <div class="footer-nav">
+        <button class="nav-btn" onclick="showScreen('monitor')">📊<br>Monitor</button>
+        <button class="nav-btn" onclick="showScreen('measurement')">📸<br>Medición</button>
+        <button class="nav-btn active" onclick="showScreen('evaluation')">🧬<br>Eval ML</button>
+        <button class="nav-btn" onclick="showScreen('history')">📋<br>Historial</button>
+    </div>
+</div>
+
+<!-- PANTALLA 5: HISTORIAL -->
+<div id="screen-history" class="screen">
+    <div class="header">
+        <button class="btn-secondary" onclick="showScreen('monitor')" style="background: none; border: none; color: #00FF00; cursor: pointer;">← Volver</button>
+        <h1>📊 Historial</h1>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="total-measurements">0</div>
+            <div class="stat-label">Total Mediciones</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="avg-glucose">--</div>
+            <div class="stat-label">Promedio Glucosa</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-bottom: 15px;">Registros Recientes</h3>
+        <div id="history-list">
+            <div style="text-align: center; color: #B0B0B0; padding: 40px;">
+                Sin registros aún. Realiza una medición o evaluación ML.
+            </div>
+        </div>
+    </div>
+
+    <button class="btn" onclick="exportHistoryCSV()">📥 Exportar Todo a CSV</button>
+
+    <div class="footer-nav">
+        <button class="nav-btn" onclick="showScreen('monitor')">📊<br>Monitor</button>
+        <button class="nav-btn" onclick="showScreen('measurement')">📸<br>Medición</button>
+        <button class="nav-btn" onclick="showScreen('evaluation')">🧬<br>Eval ML</button>
+        <button class="nav-btn active" onclick="showScreen('history')">📋<br>Historial</button>
+    </div>
+</div>
+
+<script>
+// ==================== CONFIGURACIÓN API ====================
+const API_BASE_URL = 'https://glucose-ml-monitor.onrender.com';
+
+// ==================== VARIABLES GLOBALES ====================
+let currentScreen = 'monitor';
+let sessionStartTime = new Date();
+let sessionId = generateUUID();
+let historyData = [];
+let lastMLResult = null;
+let lastMeasurement = { spo2: 98, fc: 75 };
+
+// Datos para formulario - sin valores por defecto
+let formData = {
+    actividad: '',
+    frutas: '',
+    hipertension: '',
+    diabetes: ''
+};
+
+// Charts
+let glucoseChart, accelChart, gyroChart, modelsChart;
+
+// Datos de sensores - usando refs para tiempo real
+let accelData = { x: [], y: [], z: [], labels: [] };
+let gyroData = { alpha: [], beta: [], gamma: [], labels: [] };
+let sensorActive = { accel: false, gyro: false };
+
+// Valores actuales de sensores (se actualizan en cada evento)
+let currentAccel = { x: 0, y: 0, z: 0 };
+let currentGyro = { alpha: 0, beta: 0, gamma: 0 };
+const MAX_SENSOR_POINTS = 50;
+const SENSOR_UPDATE_INTERVAL = 50; // 20 FPS para animación fluida
+
+// ==================== ACTIVITY TRACKER ====================
+const STEP_THRESHOLD = 1.2; // Umbral de aceleración para detectar paso
+const STEP_COOLDOWN = 300; // ms entre pasos válidos
+let steps = 0;
+let activityScore = 0;
+let lastStepTime = 0;
+let accelHistory = [];
+let gyroHistory = [];
+const DAILY_STEP_GOAL = 10000;
+
+// ==================== INICIALIZACIÓN ====================
+window.addEventListener('DOMContentLoaded', () => {
+    initializeApp();
+});
+
+function initializeApp() {
+    // Inicializar gráficas
+    initCharts();
+    
+    // Inicializar sensores
+    initSensors();
+    
+    // Inicializar Activity Tracker
+    initActivityTracker();
+    
+    // Verificar conexión API
+    checkAPIHealth();
+    
+    // Actualizar duración de sesión cada segundo
+    setInterval(updateSessionDuration, 1000);
+    
+    // Calcular IMC automáticamente
+    document.getElementById('peso').addEventListener('input', calculateIMC);
+    document.getElementById('talla').addEventListener('input', calculateIMC);
+    
+    // Form submission
+    document.getElementById('evaluationForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        predictWithML();
+    });
+    
+    // Cargar historial del localStorage
+    loadHistoryFromStorage();
+    
+    // Actualizar última actualización
+    setInterval(() => {
+        const mins = Math.floor((Date.now() - sessionStartTime) / 60000);
+        document.getElementById('last-update').textContent = mins > 0 ? 'Hace ' + mins + ' min' : 'Ahora';
+    }, 60000);
+    
+    // Actualizar Activity Score cada 5 segundos
+    setInterval(updateActivityScore, 5000);
+}
+
+// ==================== API HEALTH CHECK ====================
+async function checkAPIHealth() {
+    const statusDot = document.getElementById('api-status-dot');
+    const statusText = document.getElementById('api-status-text');
+    const modelsText = document.getElementById('api-models-text');
+    
+    statusDot.className = 'status-dot loading';
+    statusText.textContent = 'Verificando conexión...';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/health`);
+        if (!response.ok) throw new Error('API Error');
+        
+        const data = await response.json();
+        statusDot.className = 'status-dot';
+        statusText.textContent = 'Conectado a API';
+        modelsText.textContent = `✅ ${data.models_loaded || 7} modelos cargados`;
+    } catch (error) {
+        statusDot.className = 'status-dot error';
+        statusText.textContent = 'Sin conexión a API';
+        modelsText.textContent = '❌ Error: ' + error.message;
+    }
+}
+
+// ==================== NAVEGACIÓN ====================
+function showScreen(screenName) {
+    // Ocultar todas las pantallas
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    
+    // Actualizar botones de navegación
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    
+    // Mostrar pantalla seleccionada
+    document.getElementById('screen-' + screenName).classList.add('active');
+    currentScreen = screenName;
+    
+    // Actualizar gráficas si es necesario
+    if (screenName === 'monitor') {
+        updateCharts();
+    }
+}
+
+// ==================== GENERADOR UUID ====================
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+// ==================== FORMATO FECHA ====================
+function formatDateTime(date) {
+    const d = new Date(date);
+    const pad = (n) => n < 10 ? '0' + n : n;
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function formatTime(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+// ==================== DURACIÓN DE SESIÓN ====================
+function updateSessionDuration() {
+    const duration = Math.floor((Date.now() - sessionStartTime) / 1000);
+    const mins = Math.floor(duration / 60);
+    const secs = duration % 60;
+    document.getElementById('session-duration').textContent = 
+        `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// ==================== INICIALIZAR GRÁFICAS ====================
+function initCharts() {
+    // Gráfica de Glucosa - Inicializar vacía (se llenará con historial real)
+    const ctxGlucose = document.getElementById('glucoseChart').getContext('2d');
+    glucoseChart = new Chart(ctxGlucose, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Glucosa (mg/dL)',
+                data: [],
+                borderColor: '#00FF00',
+                backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 6,
+                pointBackgroundColor: [],
+                pointBorderColor: '#1C1C1C',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#2C2C2C',
+                    titleColor: '#00FF00',
+                    bodyColor: '#FFFFFF',
+                    borderColor: '#00FF00',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.raw;
+                            const categoria = value < 100 ? 'Normal' : value <= 125 ? 'Prediabetes' : 'Diabetes';
+                            return value + ' mg/dL (' + categoria + ')';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    min: 70,
+                    max: 200,
+                    ticks: { color: '#B0B0B0', font: { size: 10 } },
+                    grid: { color: '#333333' }
+                },
+                x: {
+                    ticks: { color: '#B0B0B0', font: { size: 10 } },
+                    grid: { color: '#333333' }
+                }
+            }
+        }
+    });
+    
+    // Cargar historial y actualizar gráfica de glucosa
+    updateGlucoseChartFromHistory();
+
+    // Gráfica de Acelerómetro
+    const ctxAccel = document.getElementById('accelChart').getContext('2d');
+    accelChart = new Chart(ctxAccel, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'X',
+                    data: [],
+                    borderColor: '#FF5252',
+                    backgroundColor: 'rgba(255, 82, 82, 0.1)',
+                    tension: 0.4,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Y',
+                    data: [],
+                    borderColor: '#2196F3',
+                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                    tension: 0.4,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Z',
+                    data: [],
+                    borderColor: '#4CAF50',
+                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                    tension: 0.4,
+                    pointRadius: 0
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: true, labels: { color: '#B0B0B0', boxWidth: 12 } }
+            },
+            scales: {
+                y: {
+                    min: -20,
+                    max: 20,
+                    ticks: { color: '#B0B0B0' },
+                    grid: { color: '#333333' }
+                },
+                x: {
+                    display: false
+                }
+            },
+            animation: false
+        }
+    });
+
+    // Gráfica de Giroscopio
+    const ctxGyro = document.getElementById('gyroChart').getContext('2d');
+    gyroChart = new Chart(ctxGyro, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Alpha',
+                    data: [],
+                    borderColor: '#FF9800',
+                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                    tension: 0.4,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Beta',
+                    data: [],
+                    borderColor: '#9C27B0',
+                    backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                    tension: 0.4,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Gamma',
+                    data: [],
+                    borderColor: '#00BCD4',
+                    backgroundColor: 'rgba(0, 188, 212, 0.1)',
+                    tension: 0.4,
+                    pointRadius: 0
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: true, labels: { color: '#B0B0B0', boxWidth: 12 } }
+            },
+            scales: {
+                y: {
+                    min: -180,
+                    max: 180,
+                    ticks: { color: '#B0B0B0' },
+                    grid: { color: '#333333' }
+                },
+                x: {
+                    display: false
+                }
+            },
+            animation: false
+        }
+    });
+}
+
+function updateCharts() {
+    if (glucoseChart) glucoseChart.update();
+    if (accelChart) accelChart.update();
+    if (gyroChart) gyroChart.update();
+}
+
+// ==================== SENSORES EN TIEMPO REAL ====================
+function initSensors() {
+    // Verificar si es iOS y necesita permiso
+    const isIOS = typeof DeviceMotionEvent.requestPermission === 'function' || 
+                  typeof DeviceOrientationEvent.requestPermission === 'function';
+    
+    if (isIOS) {
+        // Agregar botón para solicitar permiso en iOS
+        console.log('📱 iOS detectado - requiere permiso para sensores');
+        addIOSPermissionButton();
+    } else {
+        // No-iOS: agregar listeners directamente
+        if (window.DeviceMotionEvent) {
+            window.addEventListener('devicemotion', handleAccelerometer);
+            sensorActive.accel = true;
+            console.log('✅ Acelerómetro activado');
+        }
+        
+        if (window.DeviceOrientationEvent) {
+            window.addEventListener('deviceorientation', handleGyroscope);
+            sensorActive.gyro = true;
+            console.log('✅ Giroscopio activado');
+        }
+    }
+    
+    // Iniciar intervalo de actualización de gráficos (tiempo real)
+    setInterval(updateSensorCharts, SENSOR_UPDATE_INTERVAL);
+}
+
+function addIOSPermissionButton() {
+    // Buscar el contenedor de los gráficos de sensores
+    const sensorGrid = document.querySelector('.sensor-grid');
+    if (sensorGrid) {
+        const permBtn = document.createElement('button');
+        permBtn.className = 'btn btn-primary';
+        permBtn.style.cssText = 'margin-bottom: 15px; width: 100%;';
+        permBtn.innerHTML = '🔓 Activar Sensores (iOS)';
+        permBtn.onclick = requestIOSPermission;
+        sensorGrid.parentNode.insertBefore(permBtn, sensorGrid);
+    }
+}
+
+async function requestIOSPermission() {
+    try {
+        // Solicitar permiso para acelerómetro
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+            const motionPermission = await DeviceMotionEvent.requestPermission();
+            if (motionPermission === 'granted') {
+                window.addEventListener('devicemotion', handleAccelerometer);
+                sensorActive.accel = true;
+                console.log('✅ Acelerómetro activado (iOS)');
+            }
+        }
+        
+        // Solicitar permiso para giroscopio
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            const orientationPermission = await DeviceOrientationEvent.requestPermission();
+            if (orientationPermission === 'granted') {
+                window.addEventListener('deviceorientation', handleGyroscope);
+                sensorActive.gyro = true;
+                console.log('✅ Giroscopio activado (iOS)');
+            }
+        }
+        
+        // Ocultar botón de permiso
+        const permBtn = document.querySelector('.btn-primary[onclick="requestIOSPermission()"]');
+        if (permBtn) permBtn.style.display = 'none';
+        
+    } catch (error) {
+        console.error('Error solicitando permisos:', error);
+    }
+}
+
+// Manejador de acelerómetro - almacena valores y detecta pasos
+function handleAccelerometer(event) {
+    const x = event.accelerationIncludingGravity?.x || 0;
+    const y = event.accelerationIncludingGravity?.y || 0;
+    const z = event.accelerationIncludingGravity?.z || 0;
+    
+    currentAccel.x = parseFloat(x.toFixed(2));
+    currentAccel.y = parseFloat(y.toFixed(2));
+    currentAccel.z = parseFloat(z.toFixed(2));
+    
+    // Calcular magnitud para detección de pasos
+    const magnitude = Math.sqrt(x * x + y * y + z * z);
+    detectStep(magnitude);
+}
+
+// Manejador de giroscopio - almacena valores y guarda historial
+function handleGyroscope(event) {
+    const alpha = event.alpha || 0;
+    const beta = event.beta || 0;
+    const gamma = event.gamma || 0;
+    
+    currentGyro.alpha = parseFloat(alpha.toFixed(2));
+    currentGyro.beta = parseFloat(beta.toFixed(2));
+    currentGyro.gamma = parseFloat(gamma.toFixed(2));
+    
+    // Guardar magnitud de rotación para activity score
+    const rotMag = Math.sqrt(alpha * alpha + beta * beta + gamma * gamma);
+    gyroHistory.push(rotMag);
+    if (gyroHistory.length > 600) gyroHistory.shift();
+}
+
+// Actualización de gráficos a intervalo fijo (tiempo real fluido)
+function updateSensorCharts() {
+    // Solo actualizar si estamos en la pantalla de monitor
+    if (currentScreen !== 'monitor') return;
+    
+    // Actualizar datos del acelerómetro
+    if (sensorActive.accel || currentAccel.x !== 0 || currentAccel.y !== 0 || currentAccel.z !== 0) {
+        // Mantener máximo de puntos
+        if (accelData.x.length >= MAX_SENSOR_POINTS) {
+            accelData.x.shift();
+            accelData.y.shift();
+            accelData.z.shift();
+            accelData.labels.shift();
+        }
+        
+        accelData.x.push(currentAccel.x);
+        accelData.y.push(currentAccel.y);
+        accelData.z.push(currentAccel.z);
+        accelData.labels.push('');
+        
+        // Actualizar gráfico
+        if (accelChart) {
+            accelChart.data.labels = accelData.labels;
+            accelChart.data.datasets[0].data = accelData.x;
+            accelChart.data.datasets[1].data = accelData.y;
+            accelChart.data.datasets[2].data = accelData.z;
+            accelChart.update('none'); // 'none' evita animación para rendimiento
+        }
+    }
+    
+    // Actualizar datos del giroscopio
+    if (sensorActive.gyro || currentGyro.alpha !== 0 || currentGyro.beta !== 0 || currentGyro.gamma !== 0) {
+        // Mantener máximo de puntos
+        if (gyroData.alpha.length >= MAX_SENSOR_POINTS) {
+            gyroData.alpha.shift();
+            gyroData.beta.shift();
+            gyroData.gamma.shift();
+            gyroData.labels.shift();
+        }
+        
+        gyroData.alpha.push(currentGyro.alpha);
+        gyroData.beta.push(currentGyro.beta);
+        gyroData.gamma.push(currentGyro.gamma);
+        gyroData.labels.push('');
+        
+        // Actualizar gráfico
+        if (gyroChart) {
+            gyroChart.data.labels = gyroData.labels;
+            gyroChart.data.datasets[0].data = gyroData.alpha;
+            gyroChart.data.datasets[1].data = gyroData.beta;
+            gyroChart.data.datasets[2].data = gyroData.gamma;
+            gyroChart.update('none');
+        }
+    }
+    
+    // Actualizar indicadores de valores actuales en los títulos
+    updateSensorTitles();
+}
+
+// Mostrar valores actuales en tiempo real
+function updateSensorTitles() {
+    const accelTitle = document.querySelector('#accelChart')?.closest('.chart-container')?.querySelector('.chart-title');
+    const gyroTitle = document.querySelector('#gyroChart')?.closest('.chart-container')?.querySelector('.chart-title');
+    
+    if (accelTitle && sensorActive.accel) {
+        accelTitle.innerHTML = `📱 Acelerómetro <span style="font-size:10px;color:#888;">X:<span style="color:#FF5252">${currentAccel.x}</span> Y:<span style="color:#2196F3">${currentAccel.y}</span> Z:<span style="color:#4CAF50">${currentAccel.z}</span></span>`;
+    }
+    
+    if (gyroTitle && sensorActive.gyro) {
+        gyroTitle.innerHTML = `🔄 Giroscopio <span style="font-size:10px;color:#888;">α:<span style="color:#FF9800">${currentGyro.alpha.toFixed(0)}°</span> β:<span style="color:#9C27B0">${currentGyro.beta.toFixed(0)}°</span> γ:<span style="color:#00BCD4">${currentGyro.gamma.toFixed(0)}°</span></span>`;
+    }
+}
+
+// ==================== ACTIVITY TRACKER FUNCTIONS ====================
+function initActivityTracker() {
+    // Cargar datos del día desde localStorage
+    const today = new Date().toDateString();
+    const stored = localStorage.getItem('activity_data');
+    if (stored) {
+        try {
+            const data = JSON.parse(stored);
+            if (data.date === today) {
+                steps = data.steps || 0;
+                activityScore = data.activityScore || 0;
+                updateActivityUI();
+            }
+        } catch (e) {
+            console.error('Error loading activity data:', e);
+        }
+    }
+    console.log('✅ Activity Tracker inicializado');
+}
+
+function saveActivityData() {
+    const today = new Date().toDateString();
+    localStorage.setItem('activity_data', JSON.stringify({
+        date: today,
+        steps: steps,
+        activityScore: activityScore,
+        lastUpdate: new Date().toISOString()
+    }));
+}
+
+function detectStep(magnitude) {
+    const normalizedMag = Math.abs(magnitude - 9.81);
+    const now = Date.now();
+    
+    // Guardar en historial para calcular score
+    accelHistory.push(normalizedMag);
+    if (accelHistory.length > 600) accelHistory.shift();
+    
+    // Detección de pasos
+    if (normalizedMag > STEP_THRESHOLD && now - lastStepTime > STEP_COOLDOWN) {
+        lastStepTime = now;
+        steps++;
+        saveActivityData();
+        updateStepsUI();
+    }
+}
+
+function updateActivityScore() {
+    if (accelHistory.length === 0) return;
+    
+    // Calcular promedio de movimiento
+    const accelAvg = accelHistory.reduce((a, b) => a + b, 0) / accelHistory.length;
+    const gyroAvg = gyroHistory.length > 0 
+        ? gyroHistory.reduce((a, b) => a + b, 0) / gyroHistory.length 
+        : 0;
+    
+    // Score combinado (0-100)
+    const accelScore = Math.min(accelAvg * 20, 50);
+    const gyroScore = Math.min(gyroAvg * 0.5, 30);
+    const stepScore = Math.min((steps / 100) * 20, 20);
+    
+    activityScore = Math.min(Math.round(accelScore + gyroScore + stepScore), 100);
+    saveActivityData();
+    updateActivityUI();
+}
+
+function getActivityLevel(score) {
+    if (score < 10) return { level: 'sedentario', emoji: '🪑', text: 'Sedentario' };
+    if (score < 30) return { level: 'ligero', emoji: '🚶', text: 'Actividad Ligera' };
+    if (score < 50) return { level: 'moderado', emoji: '🏃', text: 'Actividad Moderada' };
+    if (score < 75) return { level: 'activo', emoji: '💪', text: 'Activo' };
+    return { level: 'muy_activo', emoji: '🔥', text: 'Muy Activo' };
+}
+
+function getScoreColor(score) {
+    if (score >= 50) return '#4CAF50';
+    if (score >= 25) return '#FFC107';
+    return '#F44336';
+}
+
+function getFeedbackMessage(level) {
+    switch (level) {
+        case 'sedentario': return '💡 Intenta moverte más para mejorar tu glucosa';
+        case 'ligero': return '👍 Buen inicio, sigue aumentando la actividad';
+        case 'moderado': return '🎯 Excelente nivel de actividad';
+        case 'activo': return '💪 ¡Muy bien! Esto ayuda a regular tu glucosa';
+        case 'muy_activo': return '🏆 ¡Increíble! Máximo beneficio para tu salud';
+        default: return '';
+    }
+}
+
+function getGlucoseImpactMessage(stepCount) {
+    if (stepCount < 1000) {
+        return 'Con tu actividad actual, el impacto en glucosa es mínimo. Más movimiento = mejor control.';
+    } else if (stepCount < 5000) {
+        return `Tus ${stepCount.toLocaleString()} pasos pueden ayudar a reducir ~5-10 mg/dL de glucosa.`;
+    } else if (stepCount < 10000) {
+        return `¡Excelente! ${stepCount.toLocaleString()} pasos pueden reducir ~10-20 mg/dL de glucosa.`;
+    } else {
+        return `🏆 ¡Meta cumplida! ${stepCount.toLocaleString()} pasos pueden reducir hasta ~25-30 mg/dL de glucosa.`;
+    }
+}
+
+function updateStepsUI() {
+    const stepsEl = document.getElementById('stepsCount');
+    const progressEl = document.getElementById('stepsProgressBar');
+    const caloriesEl = document.getElementById('caloriesEstimate');
+    const distanceEl = document.getElementById('distanceEstimate');
+    
+    if (stepsEl) stepsEl.textContent = steps.toLocaleString();
+    
+    const progress = Math.min((steps / DAILY_STEP_GOAL) * 100, 100);
+    if (progressEl) progressEl.style.width = progress + '%';
+    
+    const calories = Math.round(steps * 0.04);
+    if (caloriesEl) caloriesEl.textContent = calories;
+    
+    const distance = (steps * 0.762 / 1000).toFixed(2);
+    if (distanceEl) distanceEl.textContent = distance;
+}
+
+function updateActivityUI() {
+    updateStepsUI();
+    
+    const activity = getActivityLevel(activityScore);
+    const color = getScoreColor(activityScore);
+    
+    // Actualizar score circular
+    const scoreValueEl = document.getElementById('activityScoreValue');
+    const scoreCircleEl = document.getElementById('scoreCircleFill');
+    
+    if (scoreValueEl) scoreValueEl.textContent = activityScore;
+    if (scoreCircleEl) {
+        const dashLength = activityScore * 2.2;
+        scoreCircleEl.setAttribute('stroke-dasharray', `${dashLength} 220`);
+        scoreCircleEl.setAttribute('stroke', color);
+    }
+    
+    // Actualizar badge de nivel
+    const levelBadgeEl = document.getElementById('activityLevelBadge');
+    if (levelBadgeEl) {
+        levelBadgeEl.textContent = `${activity.emoji} ${activity.text}`;
+        levelBadgeEl.className = `score-level-badge ${activity.level}`;
+    }
+    
+    // Actualizar feedback
+    const feedbackEl = document.getElementById('activityFeedback');
+    if (feedbackEl) feedbackEl.textContent = getFeedbackMessage(activity.level);
+    
+    // Actualizar impacto en glucosa
+    const impactEl = document.getElementById('glucoseImpactText');
+    if (impactEl) impactEl.textContent = getGlucoseImpactMessage(steps);
+    
+    // Actualizar indicador en header principal
+    const mainActivityEl = document.querySelector('.indicators .indicator:last-child strong');
+    if (mainActivityEl) {
+        mainActivityEl.textContent = `${activity.emoji} ${activity.text.toUpperCase()}`;
+    }
+}
+
+// ==================== CAPTURA DE SPO2/FC CON PPG ====================
+// Variables para análisis PPG
+let ppgSamples = [];
+let ppgCanvas = null;
+let ppgContext = null;
+let captureStream = null;
+let captureInterval = null;
+let flashTrack = null;
+
+function startCapture() {
+    // Ocultar botón de inicio y limpiar datos anteriores
+    document.getElementById('btnStartCapture').style.display = 'none';
+    ppgSamples = [];
+    
+    // Crear canvas oculto para análisis de píxeles
+    if (!ppgCanvas) {
+        ppgCanvas = document.createElement('canvas');
+        ppgCanvas.width = 100;
+        ppgCanvas.height = 100;
+        ppgContext = ppgCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    
+    // Configuración de cámara con constraints optimizados para PPG
+    const constraints = {
+        video: {
+            facingMode: 'environment',
+            width: { ideal: 320 },
+            height: { ideal: 240 },
+            frameRate: { ideal: 30 }
+        }
+    };
+    
+    navigator.mediaDevices.getUserMedia(constraints)
+        .then(async stream => {
+            captureStream = stream;
+            const video = document.getElementById('videoPreview');
+            video.srcObject = stream;
+            video.style.display = 'block';
+            
+            // Intentar activar flash/linterna
+            const videoTrack = stream.getVideoTracks()[0];
+            try {
+                const capabilities = videoTrack.getCapabilities();
+                if (capabilities.torch) {
+                    await videoTrack.applyConstraints({ advanced: [{ torch: true }] });
+                    flashTrack = videoTrack;
+                    console.log('🔦 Flash activado');
+                } else {
+                    console.log('⚠️ Flash no disponible, continuando sin flash');
+                }
+            } catch (e) {
+                console.log('⚠️ No se pudo activar flash:', e.message);
+            }
+            
+            // Mostrar countdown
+            document.getElementById('captureCountdown').style.display = 'block';
+            
+            // Esperar a que el video esté listo
+            video.onloadedmetadata = () => {
+                video.play();
+                startPPGCapture(video);
+            };
+        })
+        .catch(err => {
+            console.error('Error cámara:', err);
+            alert('No se pudo acceder a la cámara. Por favor verifica los permisos.');
+            document.getElementById('btnStartCapture').style.display = 'block';
+        });
+}
+
+function startPPGCapture(video) {
+    let countdown = 10;
+    const samplesPerSecond = 30;
+    let frameCount = 0;
+    
+    // Capturar frames para análisis PPG
+    captureInterval = setInterval(() => {
+        if (video.readyState >= video.HAVE_CURRENT_DATA) {
+            // Dibujar frame actual en canvas
+            ppgContext.drawImage(video, 0, 0, ppgCanvas.width, ppgCanvas.height);
+            
+            // Obtener datos de píxeles
+            const imageData = ppgContext.getImageData(0, 0, ppgCanvas.width, ppgCanvas.height);
+            const pixels = imageData.data;
+            
+            // Calcular promedio del canal rojo (PPG usa variación de rojo)
+            let redSum = 0;
+            let greenSum = 0;
+            let pixelCount = 0;
+            
+            for (let i = 0; i < pixels.length; i += 4) {
+                redSum += pixels[i];     // R
+                greenSum += pixels[i + 1]; // G
+                pixelCount++;
+            }
+            
+            const avgRed = redSum / pixelCount;
+            const avgGreen = greenSum / pixelCount;
+            
+            // Guardar muestra con timestamp
+            ppgSamples.push({
+                time: Date.now(),
+                red: avgRed,
+                green: avgGreen,
+                ratio: avgRed / (avgGreen + 0.001) // Ratio R/G para SpO2
+            });
+            
+            frameCount++;
+        }
+    }, 1000 / samplesPerSecond);
+    
+    // Countdown visual
+    const countdownInterval = setInterval(() => {
+        countdown--;
+        document.getElementById('countdownNumber').textContent = countdown;
+        document.getElementById('captureProgress').style.width = ((10 - countdown) * 10) + '%';
+        
+        if (countdown <= 0) {
+            clearInterval(countdownInterval);
+            clearInterval(captureInterval);
+            completeCapture();
+        }
+    }, 1000);
+}
+
+function completeCapture() {
+    // Apagar flash si está activo
+    if (flashTrack) {
+        try {
+            flashTrack.applyConstraints({ advanced: [{ torch: false }] });
+        } catch (e) {}
+        flashTrack = null;
+    }
+    
+    // Detener cámara
+    if (captureStream) {
+        captureStream.getTracks().forEach(track => track.stop());
+        captureStream = null;
+    }
+    
+    document.getElementById('videoPreview').style.display = 'none';
+    document.getElementById('captureCountdown').style.display = 'none';
+    
+    // Analizar señal PPG y calcular SpO2/BPM
+    const { spo2, bpm, quality } = analyzePPGSignal(ppgSamples);
+    
+    lastMeasurement = { spo2, fc: bpm, timestamp: new Date(), quality };
+    
+    document.getElementById('measured-spo2').textContent = spo2;
+    document.getElementById('measured-fc').textContent = bpm;
+    document.getElementById('measurement-time').textContent = formatDateTime(new Date());
+    
+    // Actualizar calidad de señal
+    const qualityEl = document.querySelector('#captureResults .stat-card:last-child p strong') || 
+                      document.querySelector('#captureResults p strong');
+    if (qualityEl) {
+        qualityEl.textContent = quality;
+        qualityEl.style.color = quality === 'Alta' ? '#4CAF50' : quality === 'Media' ? '#FFC107' : '#F44336';
+    }
+    
+    // Mostrar resultados
+    document.getElementById('captureResults').style.display = 'block';
+    document.getElementById('btnSaveMeasurement').style.display = 'block';
+    
+    // Actualizar display principal
+    document.getElementById('spo2-display').textContent = spo2 + '%';
+    document.getElementById('fc-display').textContent = bpm + ' bpm';
+    
+    // Auto-rellenar en formulario de evaluación ML
+    document.getElementById('eval-spo2').value = spo2;
+    document.getElementById('eval-fc').value = bpm;
+    
+    console.log(`📊 PPG Análisis: SpO2=${spo2}%, BPM=${bpm}, Calidad=${quality}`);
+    console.log(`📈 Muestras capturadas: ${ppgSamples.length}`);
+}
+
+// ==================== ANÁLISIS DE SEÑAL PPG ====================
+function analyzePPGSignal(samples) {
+    if (samples.length < 60) {
+        // Muy pocas muestras, usar estimación
+        return { spo2: 97, bpm: 72, quality: 'Baja' };
+    }
+    
+    // Extraer valores rojos para análisis de pulso
+    const redValues = samples.map(s => s.red);
+    const timeValues = samples.map(s => s.time);
+    
+    // Detectar picos (latidos) usando cruces por cero de la derivada
+    const bpm = calculateHeartRate(redValues, timeValues);
+    
+    // Calcular SpO2 usando ratio R/G (simplificado)
+    const spo2 = calculateSpO2(samples);
+    
+    // Evaluar calidad de señal
+    const quality = evaluateSignalQuality(redValues);
+    
+    return { spo2, bpm, quality };
+}
+
+function calculateHeartRate(values, times) {
+    if (values.length < 30) return 72; // Valor por defecto
+    
+    // Suavizar señal con media móvil
+    const smoothed = smoothSignal(values, 5);
+    
+    // Encontrar picos (máximos locales)
+    const peaks = findPeaks(smoothed);
+    
+    if (peaks.length < 2) {
+        // Intentar con análisis de frecuencia simple
+        return estimateBPMFromVariance(values, times);
+    }
+    
+    // Calcular intervalos entre picos
+    const intervals = [];
+    for (let i = 1; i < peaks.length; i++) {
+        const interval = times[peaks[i]] - times[peaks[i-1]];
+        if (interval > 300 && interval < 2000) { // Entre 30 y 200 BPM
+            intervals.push(interval);
+        }
+    }
+    
+    if (intervals.length === 0) {
+        return estimateBPMFromVariance(values, times);
+    }
+    
+    // Promedio de intervalos -> BPM
+    const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    const bpm = Math.round(60000 / avgInterval);
+    
+    // Limitar a rango fisiológico
+    return Math.max(45, Math.min(180, bpm));
+}
+
+function smoothSignal(values, windowSize) {
+    const result = [];
+    const half = Math.floor(windowSize / 2);
+    
+    for (let i = 0; i < values.length; i++) {
+        let sum = 0;
+        let count = 0;
+        for (let j = Math.max(0, i - half); j <= Math.min(values.length - 1, i + half); j++) {
+            sum += values[j];
+            count++;
+        }
+        result.push(sum / count);
+    }
+    
+    return result;
+}
+
+function findPeaks(values) {
+    const peaks = [];
+    const threshold = calculateThreshold(values);
+    
+    for (let i = 2; i < values.length - 2; i++) {
+        // Verificar si es máximo local
+        if (values[i] > values[i-1] && values[i] > values[i-2] &&
+            values[i] > values[i+1] && values[i] > values[i+2] &&
+            values[i] > threshold) {
+            peaks.push(i);
+        }
+    }
+    
+    return peaks;
+}
+
+function calculateThreshold(values) {
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const std = Math.sqrt(values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length);
+    return mean + std * 0.5;
+}
+
+function estimateBPMFromVariance(values, times) {
+    // Análisis de autocorrelación simplificado
+    const duration = (times[times.length - 1] - times[0]) / 1000; // segundos
+    
+    // Contar cruces por la media
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    let crossings = 0;
+    for (let i = 1; i < values.length; i++) {
+        if ((values[i-1] < mean && values[i] >= mean) || 
+            (values[i-1] >= mean && values[i] < mean)) {
+            crossings++;
+        }
+    }
+    
+    // Cada ciclo cardíaco tiene ~2 cruces por la media
+    const estimatedCycles = crossings / 2;
+    const bpm = Math.round((estimatedCycles / duration) * 60);
+    
+    return Math.max(50, Math.min(150, bpm));
+}
+
+function calculateSpO2(samples) {
+    if (samples.length < 30) return 97;
+    
+    // Calcular ratio de variabilidad R/G (método simplificado de SpO2)
+    const ratios = samples.map(s => s.ratio);
+    
+    // Calcular AC y DC componentes del rojo
+    const redValues = samples.map(s => s.red);
+    const greenValues = samples.map(s => s.green);
+    
+    const redAC = Math.max(...redValues) - Math.min(...redValues);
+    const redDC = redValues.reduce((a, b) => a + b, 0) / redValues.length;
+    
+    const greenAC = Math.max(...greenValues) - Math.min(...greenValues);
+    const greenDC = greenValues.reduce((a, b) => a + b, 0) / greenValues.length;
+    
+    // Ratio de ratios (R = (ACred/DCred) / (ACgreen/DCgreen))
+    const R = (redAC / redDC) / ((greenAC / greenDC) + 0.001);
+    
+    // Fórmula empírica simplificada: SpO2 = 110 - 25 * R
+    // Calibrada para cámaras de smartphone
+    let spo2 = Math.round(110 - 25 * R);
+    
+    // Limitar a rango fisiológico realista
+    spo2 = Math.max(85, Math.min(100, spo2));
+    
+    return spo2;
+}
+
+function evaluateSignalQuality(values) {
+    if (values.length < 30) return 'Baja';
+    
+    // Calcular varianza normalizada
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
+    const cv = Math.sqrt(variance) / mean; // Coeficiente de variación
+    
+    // Señal buena debe tener variación moderada (no muy plana ni muy ruidosa)
+    if (cv > 0.01 && cv < 0.15) {
+        return 'Alta';
+    } else if (cv >= 0.005 && cv <= 0.25) {
+        return 'Media';
+    } else {
+        return 'Baja';
+    }
+}
+
+function saveMeasurement() {
+    const measurement = {
+        id: generateUUID(),
+        type: 'measurement',
+        timestamp: new Date().toISOString(),
+        data: lastMeasurement
+    };
+    
+    historyData.push(measurement);
+    saveHistoryToStorage();
+    updateHistoryDisplay();
+    
+    alert('✅ Medición guardada en historial');
+    
+    // Reset
+    document.getElementById('captureResults').style.display = 'none';
+    document.getElementById('btnSaveMeasurement').style.display = 'none';
+    document.getElementById('btnStartCapture').style.display = 'block';
+}
+
+// ==================== FORMULARIO ML ====================
+function calculateIMC() {
+    const peso = parseFloat(document.getElementById('peso').value);
+    const talla = parseFloat(document.getElementById('talla').value);
+    
+    if (peso && talla && talla > 0) {
+        const imc = (peso / (talla * talla)).toFixed(2);
+        document.getElementById('imc').value = imc;
+    }
+}
+
+function toggleOption(btn, field, value) {
+    // Remover active de todos los botones del grupo
+    btn.parentElement.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    // Activar el clickeado
+    btn.classList.add('active');
+    // Guardar valor
+    formData[field] = value;
+}
+
+// ==================== PREDICCIÓN ML ====================
+async function predictWithML() {
+    const btn = document.getElementById('btnPredict');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px; display: inline-block; margin-right: 10px;"></div> Consultando API...';
+    
+    // API espera snake_case y valores en minúsculas para campos booleanos
+    const payload = {
+        edad: parseInt(document.getElementById('edad').value) || 0,
+        sexo: document.getElementById('sexo').value || 'M',
+        peso: parseFloat(document.getElementById('peso').value) || 0,
+        talla: parseFloat(document.getElementById('talla').value) || 0,
+        imc: parseFloat(document.getElementById('imc').value) || 0,
+        perimetro_cintura: parseInt(document.getElementById('cintura').value) || 0,
+        spo2: parseInt(document.getElementById('eval-spo2').value) || 98,
+        frecuencia_cardiaca: parseInt(document.getElementById('eval-fc').value) || 75,
+        actividad_fisica: formData.actividad.toLowerCase(),
+        consumo_frutas: formData.frutas.toLowerCase(),
+        tiene_hipertension: formData.hipertension.toLowerCase(),
+        tiene_diabetes: formData.diabetes.toLowerCase(),
+        puntaje_findrisc: parseInt(document.getElementById('findrisc').value) || 0
+    };
+    
+    console.log('📤 Payload enviado:', JSON.stringify(payload, null, 2));
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/predict`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`API Error ${response.status}: ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('📥 Respuesta API:', result);
+        lastMLResult = result;
+        
+        displayMLResults(result);
+        showScreen('results');
+        
+    } catch (error) {
+        console.error('❌ Error API:', error);
+        alert('❌ Error al conectar con la API: ' + error.message + '\n\nVerifica que el servidor esté activo.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🧬 PREDECIR CON 7 MODELOS ML';
+    }
+}
+
+function displayMLResults(result) {
+    // Obtener predicciones individuales (API devuelve predicciones_individuales)
+    const preds = result.predicciones_individuales || result.predicciones_por_modelo || {};
+    const ensembleValue = result.glucosa_predicha || 0;
+    
+    // Encontrar el MEJOR modelo (más cercano al ensemble)
+    let bestModel = '';
+    let bestValue = ensembleValue;
+    let minDiff = Infinity;
+    
+    if (preds && typeof preds === 'object' && Object.keys(preds).length > 0) {
+        for (const [name, val] of Object.entries(preds)) {
+            const diff = Math.abs(Number(val) - ensembleValue);
+            if (diff < minDiff) {
+                minDiff = diff;
+                bestModel = name;
+                bestValue = Number(val);
+            }
+        }
+    }
+    
+    // Mostrar nombre del modelo más acertado
+    document.getElementById('best-model-name').textContent = bestModel || 'Ensemble';
+    
+    // Mostrar VALOR DEL MEJOR MODELO como resultado principal
+    document.getElementById('result-glucose').innerHTML = Math.round(bestValue) + '<span style="font-size: 32px;"> mg/dL</span>';
+    
+    // Categoría basada en el valor del mejor modelo
+    let categoria = 'Normal';
+    let riesgo = 'Bajo';
+    if (bestValue >= 126) {
+        categoria = 'Diabetes';
+        riesgo = 'Alto';
+    } else if (bestValue >= 100) {
+        categoria = 'Prediabetes';
+        riesgo = 'Moderado';
+    }
+    
+    const categoryEl = document.getElementById('result-category');
+    categoryEl.textContent = categoria;
+    categoryEl.className = 'category-badge category-' + categoria.toLowerCase();
+    
+    document.getElementById('result-risk').textContent = riesgo;
+    document.getElementById('result-confidence').textContent = result.confianza || 'Alta';
+    
+    // Actualizar glucosa principal con el valor del mejor modelo
+    document.getElementById('main-glucose').textContent = Math.round(bestValue);
+    
+    // 🔴 INMEDIATAMENTE agregar a la gráfica de glucosa como punto actual
+    addCurrentPredictionToChart(Math.round(bestValue));
+    
+    // Mostrar promedio ensemble
+    document.getElementById('ensemble-value').textContent = Math.round(ensembleValue) + ' mg/dL';
+    
+    // Rango - manejar string o objeto
+    const rango = result.rango_confianza;
+    if (typeof rango === 'string') {
+        document.getElementById('result-range').textContent = rango;
+    } else if (rango && rango.min !== undefined) {
+        document.getElementById('result-range').textContent = `${rango.min} - ${rango.max} mg/dL`;
+    } else {
+        document.getElementById('result-range').textContent = 'N/A';
+    }
+    
+    // Recomendación
+    let recomendacion = result.recomendacion || '';
+    if (!recomendacion) {
+        if (categoria === 'Diabetes') {
+            recomendacion = 'Resultado compatible con diabetes. Consulta a un profesional de salud.';
+        } else if (categoria === 'Prediabetes') {
+            recomendacion = 'Prediabetes detectada. Refuerza actividad física y controla carbohidratos.';
+        } else {
+            recomendacion = 'Valores normales. Continúa con hábitos saludables.';
+        }
+    }
+    document.getElementById('recommendation-text').textContent = recomendacion;
+    
+    // Crear gráfica de OTROS modelos (excluyendo el mejor)
+    createModelsChart(preds, bestModel);
+    
+    // Guardar para historial
+    lastMLResult = {
+        ...result,
+        modelo_usado: bestModel,
+        valor_modelo: bestValue,
+        categoria: categoria
+    };
+}
+
+function createModelsChart(predictions, bestModel) {
+    const ctx = document.getElementById('modelsChart').getContext('2d');
+    
+    if (modelsChart) {
+        modelsChart.destroy();
+    }
+    
+    // Excluir el mejor modelo del gráfico (ya se muestra arriba)
+    const otherModels = {};
+    for (const [name, val] of Object.entries(predictions)) {
+        if (name !== bestModel) {
+            otherModels[name] = val;
+        }
+    }
+    
+    const labels = Object.keys(otherModels);
+    const data = Object.values(otherModels).map(v => Math.round(Number(v)));
+    
+    if (labels.length === 0) {
+        // Si solo hay un modelo, mostrar mensaje
+        ctx.font = '16px sans-serif';
+        ctx.fillStyle = '#B0B0B0';
+        ctx.textAlign = 'center';
+        ctx.fillText('No hay otros modelos para mostrar', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        return;
+    }
+    
+    modelsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Glucosa Predicha (mg/dL)',
+                data: data,
+                backgroundColor: '#4CAF50',
+                borderColor: '#2E7D32',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                title: { display: false }
+            },
+            scales: {
+                x: {
+                    beginAtZero: false,
+                    min: Math.min(...data) - 20,
+                    max: Math.max(...data) + 20,
+                    ticks: { color: '#B0B0B0' },
+                    grid: { color: '#333333' }
+                },
+                y: {
+                    ticks: { color: '#B0B0B0', font: { size: 11 } },
+                    grid: { color: '#333333' }
+                }
+            }
+        }
+    });
+}
+
+function saveMLEvaluation() {
+    if (!lastMLResult) return;
+    
+    const evaluation = {
+        id: generateUUID(),
+        type: 'ml_evaluation',
+        timestamp: new Date().toISOString(),
+        data: lastMLResult
+    };
+    
+    historyData.push(evaluation);
+    saveHistoryToStorage();
+    updateHistoryDisplay();
+    
+    // Limpiar predicción actual ya que ahora está guardada
+    clearCurrentPrediction();
+    updateGlucoseChartFromHistory();
+    
+    alert('✅ Evaluación guardada en historial');
+}
+
+// ==================== GRÁFICA DE GLUCOSA DINÁMICA ====================
+// Variable para almacenar la última predicción en tiempo real (aún no guardada)
+let currentPrediction = null;
+
+function updateGlucoseChartFromHistory() {
+    if (!glucoseChart) return;
+    
+    // Filtrar solo evaluaciones ML guardadas
+    const mlEvaluations = historyData
+        .filter(item => item.type === 'ml_evaluation')
+        .slice(-6); // 6 del historial + 1 actual = 7 máximo
+    
+    // Construir datos del historial
+    const labels = mlEvaluations.map(item => {
+        const date = new Date(item.timestamp);
+        return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    });
+    
+    const dataValues = mlEvaluations.map(item => {
+        // Usar valor del mejor modelo si existe, sino glucosa_predicha
+        return item.data.valor_modelo || item.data.glucosa_predicha;
+    });
+    
+    // Agregar predicción actual (no guardada) si existe
+    if (currentPrediction) {
+        labels.push('Ahora');
+        dataValues.push(currentPrediction.value);
+    }
+    
+    // Construir colores por categoría semántica
+    const pointColors = dataValues.map(v => 
+        v < 100 ? '#00FF00' : v <= 125 ? '#FFD700' : '#FF4444'
+    );
+    
+    // Si no hay datos, mostrar placeholder con valor inicial
+    if (dataValues.length === 0) {
+        const currentGlucose = parseInt(document.getElementById('main-glucose').textContent) || 137;
+        glucoseChart.data.labels = ['Inicio'];
+        glucoseChart.data.datasets[0].data = [currentGlucose];
+        glucoseChart.data.datasets[0].pointBackgroundColor = [
+            currentGlucose < 100 ? '#00FF00' : currentGlucose <= 125 ? '#FFD700' : '#FF4444'
+        ];
+        document.getElementById('glucoseChartTitle').textContent = '📈 Glucosa (Realiza una evaluación ML)';
+    } else {
+        glucoseChart.data.labels = labels;
+        glucoseChart.data.datasets[0].data = dataValues;
+        glucoseChart.data.datasets[0].pointBackgroundColor = pointColors;
+        
+        const savedCount = mlEvaluations.length;
+        const currentText = currentPrediction ? ' +1 actual' : '';
+        document.getElementById('glucoseChartTitle').textContent = `📈 Glucosa (${savedCount} guardadas${currentText})`;
+    }
+    
+    glucoseChart.update();
+}
+
+// Función para agregar predicción actual a la gráfica (antes de guardar)
+function addCurrentPredictionToChart(value) {
+    currentPrediction = {
+        value: value,
+        timestamp: new Date()
+    };
+    updateGlucoseChartFromHistory();
+}
+
+// Limpiar predicción actual cuando se guarda
+function clearCurrentPrediction() {
+    currentPrediction = null;
+}
+
+// ==================== HISTORIAL ====================
+function loadHistoryFromStorage() {
+    const stored = localStorage.getItem('glucose_history');
+    if (stored) {
+        historyData = JSON.parse(stored);
+        updateHistoryDisplay();
+        updateGlucoseChartFromHistory();
+    }
+}
+
+function saveHistoryToStorage() {
+    localStorage.setItem('glucose_history', JSON.stringify(historyData));
+    updateGlucoseChartFromHistory();
+}
+
+function updateHistoryDisplay() {
+    const list = document.getElementById('history-list');
+    
+    if (historyData.length === 0) {
+        list.innerHTML = '<div style="text-align: center; color: #B0B0B0; padding: 40px;">Sin registros aún.</div>';
+        document.getElementById('total-measurements').textContent = '0';
+        document.getElementById('avg-glucose').textContent = '--';
+        return;
+    }
+    
+    // Actualizar stats
+    document.getElementById('total-measurements').textContent = historyData.length;
+    
+    const glucoseValues = historyData
+        .filter(item => item.type === 'ml_evaluation')
+        .map(item => item.data.glucosa_predicha);
+    
+    if (glucoseValues.length > 0) {
+        const avg = (glucoseValues.reduce((a, b) => a + b, 0) / glucoseValues.length).toFixed(1);
+        document.getElementById('avg-glucose').textContent = avg;
+    }
+    
+    // Mostrar últimos 10
+    const recent = historyData.slice(-10).reverse();
+    list.innerHTML = recent.map(item => {
+        const date = new Date(item.timestamp);
+        const dateStr = formatDateTime(date);
+        
+        if (item.type === 'measurement') {
+            return `
+                <div class="history-item">
+                    <div>
+                        <div class="history-date">${dateStr}</div>
+                        <div class="badge badge-spo2">SpO2/FC</div>
+                    </div>
+                    <div class="history-data">
+                        SpO2: ${item.data.spo2}% | FC: ${item.data.fc} bpm
+                    </div>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="history-item">
+                    <div>
+                        <div class="history-date">${dateStr}</div>
+                        <div class="badge badge-ml">Evaluación ML</div>
+                    </div>
+                    <div class="history-data">
+                        ${item.data.glucosa_predicha} mg/dL | ${item.data.categoria}
+                    </div>
+                </div>
+            `;
+        }
+    }).join('');
+}
+
+function exportHistoryCSV() {
+    if (historyData.length === 0) {
+        alert('No hay datos para exportar');
+        return;
+    }
+    
+    let csv = 'Fecha,Tipo,SpO2,FC,Glucosa,Categoria\n';
+    
+    historyData.forEach(item => {
+        const date = new Date(item.timestamp).toLocaleString();
+        if (item.type === 'measurement') {
+            csv += `${date},Medición,${item.data.spo2},${item.data.fc},,\n`;
+        } else {
+            csv += `${date},Evaluación ML,,,${item.data.glucosa_predicha},${item.data.categoria}\n`;
+        }
+    });
+    
+    downloadFile(csv, 'historial_glucose_ml.csv', 'text/csv');
+}
+
+// ==================== DOWNLOAD FILE ====================
+function downloadFile(content, filename, type) {
+    const blob = new Blob([content], { type: type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
+</html>

@@ -5,3 +5,5 @@ pandas
 numpy
 joblib
 python-dotenv
+xgboost
+lightgbm
