@@ -600,13 +600,12 @@ app.add_middleware(
 
 
 
-@app.get("/")
-
-
+@app.get("/", include_in_schema=False)
 def root():
-
-
-    return {"ok": True, "service": "API Glucosa RF", "docs": "/docs", "health": "/health"}
+    index_path = MONITOR_BASE_DIR / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=404, detail="index.html no encontrado")
+    return FileResponse(index_path)
 
 
 
@@ -1101,6 +1100,59 @@ def monitor_preprocess_input(data: MonitorPredictionInput) -> pd.DataFrame:
         return pd.DataFrame(X_scaled, columns=df.columns)
     return df
 
+
+def _predict_monitor(data: MonitorPredictionInput) -> Dict[str, Any]:
+    X_preprocessed = monitor_preprocess_input(data)
+
+    predicciones_individuales = {}
+    predicciones_validas = []
+
+    for model_name, model in monitor_models.items():
+        try:
+            pred = model.predict(X_preprocessed)[0]
+            predicciones_individuales[model_name] = float(pred)
+            predicciones_validas.append(pred)
+        except Exception:
+            predicciones_individuales[model_name] = None
+
+    if len(predicciones_validas) == 0:
+        raise HTTPException(status_code=500, detail="Ningun modelo pudo predecir")
+
+    prediccion_final = float(np.mean(predicciones_validas))
+
+    if prediccion_final < 100:
+        categoria = "Normal"
+    elif prediccion_final < 126:
+        categoria = "Prediabetes"
+    else:
+        categoria = "Diabetes"
+
+    std_predicciones = float(np.std(predicciones_validas))
+    confidence = 1.0 - (std_predicciones / prediccion_final) if prediccion_final > 0 else 0.5
+    confidence = max(0.0, min(1.0, confidence))
+
+    intervalo_min = prediccion_final - 1.96 * std_predicciones
+    intervalo_max = prediccion_final + 1.96 * std_predicciones
+
+    mejor_modelo = min(
+        [(k, v) for k, v in predicciones_individuales.items() if v is not None],
+        key=lambda x: abs(x[1] - prediccion_final),
+    )[0]
+
+    return {
+        "prediccion_final": round(prediccion_final, 2),
+        "categoria": categoria,
+        "predicciones_individuales": {
+            k: round(v, 2) if v is not None else None
+            for k, v in predicciones_individuales.items()
+        },
+        "confidence": round(confidence, 3),
+        "intervalo_confianza": [round(intervalo_min, 2), round(intervalo_max, 2)],
+        "mejor_modelo": mejor_modelo,
+        "timestamp": datetime.now().isoformat(),
+        "input_data": data.model_dump(),
+    }
+
 # ------------------------ Endpoints ------------------------------------------
 
 
@@ -1174,27 +1226,11 @@ def predict(payload: Dict[str, Any] = Body(...)):
 
 
     try:
+        if not monitor_ready:
+            raise HTTPException(status_code=503, detail="Monitor no disponible")
 
-
-        df_one, missing_cols = align_row(payload)
-
-
-        y_pred = float(pipe.predict(df_one)[0])
-
-
-        return {
-
-
-            "pred_glucosa_mg_dl": round(y_pred, 2),
-
-
-            "imc_usado": float(df_one["imc"].iloc[0]) if "imc" in df_one.columns and not safe_isna(df_one["imc"].iloc[0]) else None,
-
-
-            "campos_faltantes_imputados": missing_cols,
-
-
-        }
+        data = MonitorPredictionInput(**payload)
+        return _predict_monitor(data)
 
 
     except Exception as e:
@@ -1231,56 +1267,7 @@ def monitor_predict(data: MonitorPredictionInput):
         raise HTTPException(status_code=503, detail="Monitor no disponible")
 
     try:
-        X_preprocessed = monitor_preprocess_input(data)
-
-        predicciones_individuales = {}
-        predicciones_validas = []
-
-        for model_name, model in monitor_models.items():
-            try:
-                pred = model.predict(X_preprocessed)[0]
-                predicciones_individuales[model_name] = float(pred)
-                predicciones_validas.append(pred)
-            except Exception:
-                predicciones_individuales[model_name] = None
-
-        if len(predicciones_validas) == 0:
-            raise HTTPException(status_code=500, detail="Ningun modelo pudo predecir")
-
-        prediccion_final = float(np.mean(predicciones_validas))
-
-        if prediccion_final < 100:
-            categoria = "Normal"
-        elif prediccion_final < 126:
-            categoria = "Prediabetes"
-        else:
-            categoria = "Diabetes"
-
-        std_predicciones = float(np.std(predicciones_validas))
-        confidence = 1.0 - (std_predicciones / prediccion_final) if prediccion_final > 0 else 0.5
-        confidence = max(0.0, min(1.0, confidence))
-
-        intervalo_min = prediccion_final - 1.96 * std_predicciones
-        intervalo_max = prediccion_final + 1.96 * std_predicciones
-
-        mejor_modelo = min(
-            [(k, v) for k, v in predicciones_individuales.items() if v is not None],
-            key=lambda x: abs(x[1] - prediccion_final),
-        )[0]
-
-        return {
-            "prediccion_final": round(prediccion_final, 2),
-            "categoria": categoria,
-            "predicciones_individuales": {
-                k: round(v, 2) if v is not None else None
-                for k, v in predicciones_individuales.items()
-            },
-            "confidence": round(confidence, 3),
-            "intervalo_confianza": [round(intervalo_min, 2), round(intervalo_max, 2)],
-            "mejor_modelo": mejor_modelo,
-            "timestamp": datetime.now().isoformat(),
-            "input_data": data.model_dump(),
-        }
+        return _predict_monitor(data)
     except HTTPException:
         raise
     except Exception as e:
