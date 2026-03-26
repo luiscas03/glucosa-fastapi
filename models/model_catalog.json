@@ -1,0 +1,47 @@
+{
+  "services": [
+    {
+      "id": "glucose_regression_v2",
+      "path": "models.glucose_regression_v2.main:app",
+      "port_suggestion": 8001,
+      "type": "tabular_regression",
+      "artifacts": [
+        "models/glucose_regression_v2/glucose_model_v2_clean.pkl",
+        "models/glucose_regression_v2/scaler_v2_clean.pkl",
+        "models/glucose_regression_v2/features_v2.txt"
+      ]
+    },
+    {
+      "id": "postprandial_global_m1",
+      "path": "models.postprandial_global_m1.main:app",
+      "port_suggestion": 8002,
+      "type": "postprandial_peak_risk",
+      "artifacts": [
+        "models/postprandial_global_m1/model_global_m1.joblib",
+        "models/postprandial_global_m1/iso_global_m1.joblib",
+        "models/postprandial_global_m1/deploy_metadata.json"
+      ]
+    },
+    {
+      "id": "postprandial_cluster_0",
+      "path": "models.postprandial_cluster_0.main:app",
+      "port_suggestion": 8003,
+      "type": "postprandial_peak_risk",
+      "artifacts": [
+        "models/postprandial_cluster_0/model_cluster_0.joblib",
+        "models/postprandial_cluster_0/iso_cluster_0.joblib",
+        "models/postprandial_cluster_0/deploy_metadata.json"
+      ]
+    },
+    {
+      "id": "postprandial_cluster_1",
+      "path": "models.postprandial_cluster_1.main:app",
+      "port_suggestion": 8004,
+      "type": "postprandial_peak_risk",
+      "artifacts": [
+        "models/postprandial_cluster_1/model_cluster_1.joblib",
+        "models/postprandial_cluster_1/deploy_metadata.json"
+      ]
+    }
+  ]
+}

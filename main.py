@@ -3,7 +3,6 @@
 
 from fastapi import FastAPI, HTTPException, Security, Body
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 
 
 from fastapi.security import APIKeyHeader
@@ -68,8 +67,6 @@ MODEL_PATH = os.getenv("MODEL_PATH", "assets/models/root/modelo_gradient_boostin
 
 
 API_KEY = os.getenv("API_KEY")
-
-MONITOR_INDEX_PATH = Path(__file__).resolve().parent / "static" / "index.html"
 MONITOR_MODELS_DIR = Path(__file__).resolve().parent / "assets" / "models" / "monitor"
 MONITOR_MODEL_FILES = {
     "xgboost": MONITOR_MODELS_DIR / "XGBoost.joblib",
@@ -595,16 +592,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-
-
-
-@app.get("/", include_in_schema=False)
-def root():
-    if not MONITOR_INDEX_PATH.exists():
-        raise HTTPException(status_code=404, detail="index.html no encontrado")
-    return FileResponse(MONITOR_INDEX_PATH)
 
 
 
@@ -1187,13 +1174,6 @@ def monitor_health():
         "models_available": list(monitor_models.keys()),
         "feature_names_loaded": monitor_feature_names is not None,
     }
-
-
-@app.get("/monitor")
-def monitor_index():
-    if not MONITOR_INDEX_PATH.exists():
-        raise HTTPException(status_code=404, detail="index.html no encontrado")
-    return FileResponse(MONITOR_INDEX_PATH)
 
 
 @app.get("/monitor/models")

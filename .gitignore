@@ -1,31 +1,49 @@
-# Entornos virtuales
-/env
-/venv
-/.venv
+# Python virtual environments
+.venv/
+venv/
+env/
+**/.venv/
+**/venv/
+**/env/
 
-# Archivos de configuración local que contienen secretos
-.env
-
-# Archivos de caché de Python
+# Python cache and test cache
 __pycache__/
-*.py[cod]
-*$py.class
-
-# INFORME
-
-INFORME.md
-.INFORME.md
-# Archivos de caché de herramientas de testing
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
 .pytest_cache/
-.coverage
+**/.pytest_cache/
 
-# Carpetas de configuración de IDEs
-.vscode/
-.idea/
+# Local environment files
+.env
+.env.local
+**/.env
+**/.env.local
 
-# Archivos del sistema operativo
+# Operating system files
 .DS_Store
 Thumbs.db
 
-# Archivos de Jupyter Notebook
-.ipynb_checkpoints
+# Jupyter checkpoints
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Local docs, notebooks, specs and static files not intended for deployment
+GlucoWiseV5-Notebook-Full-Report.pdf
+Modelos Biomarcadores/
+modelo_features_spec.md
+test_client.html
+static/
+
+# Coverage and local tooling
+.coverage
+.mypy_cache/
+.ruff_cache/
+
+# Editors and IDEs
+.vscode/
+.idea/

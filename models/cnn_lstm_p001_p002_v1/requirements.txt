@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+numpy
+python-dotenv
+tensorflow==2.16.1
