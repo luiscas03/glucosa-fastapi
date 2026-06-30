@@ -1,0 +1,10 @@
+# HTTP plano en :80. El TLS lo pone Cloudflare en el edge; cloudflared -> caddy:80.
+# Una ruta por modelo. handle_path quita el prefijo: /m19/predict -> /predict.
+:80 {
+	handle_path /m19/* { reverse_proxy m19:8000 }
+	handle_path /m2/*  { reverse_proxy m2:8000 }
+	handle_path /m5/*  { reverse_proxy m5:8000 }
+	handle_path /m6/*  { reverse_proxy m6:8000 }
+	handle_path /m3/*  { reverse_proxy m3:8000 }
+	handle { respond "BIOMON models API. Rutas: /m19 /m2 /m5 /m6 /m3" 200 }
+}

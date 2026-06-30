@@ -1,0 +1,44 @@
+# BIOMON — 5 modelos detrás de Caddy (ruteo por ruta), expuestos vía Cloudflare Tunnel.
+# Sin puertos abiertos en el VPS: cloudflared sale hacia Cloudflare y reenvía a caddy:80.
+# Keys y token viven en .env (no se hornean en la imagen). Header esperado: X-API-Key.
+services:
+  m19:                      # Riesgo posprandial (M19) — ONNX, primario
+    build: ../models/m19_postprandial
+    environment: { API_KEY: ${API_KEY_M19} }
+    restart: unless-stopped
+    expose: ["8000"]
+  m2:                       # Glucosa neural PPG (M2) — keras/TF
+    build: ../models/cnn_lstm_16p_clean_v1
+    environment: { API_KEY: ${API_KEY_M2} }
+    restart: unless-stopped
+    expose: ["8000"]
+  m5:                       # Riesgo posprandial perfil C0 (M5)
+    build: ../models/postprandial_cluster_0
+    environment: { API_KEY: ${API_KEY_M5} }
+    restart: unless-stopped
+    expose: ["8000"]
+  m6:                       # Riesgo posprandial perfil C1 (M6) — el sano
+    build: ../models/postprandial_cluster_1
+    environment: { API_KEY: ${API_KEY_M6} }
+    restart: unless-stopped
+    expose: ["8000"]
+  m3:                       # Glucosa tabular Regrix (M3)
+    build: ../models/glucose_regression_v2
+    environment: { API_KEY: ${API_KEY_M3} }
+    restart: unless-stopped
+    expose: ["8000"]
+
+  caddy:                    # ruteo /m19 /m2 ... -> contenedores (HTTP plano :80)
+    image: caddy:2-alpine
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    expose: ["80"]
+    depends_on: [m19, m2, m5, m6, m3]
+
+  cloudflared:              # túnel: hostname público -> http://caddy:80 (TLS en el edge)
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment: { TUNNEL_TOKEN: ${TUNNEL_TOKEN} }
+    depends_on: [caddy]
