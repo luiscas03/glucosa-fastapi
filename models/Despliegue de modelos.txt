@@ -1,0 +1,145 @@
+ACR_PASS=$(az acr credential show --name $MI_ACR --query "passwords[0].value" -o tsv)
+
+# 2. Creamos la aplicación que escala a cero (pago por uso)
+az containerapp create \
+  --name $APP_NAME \
+  --resource-group $MI_RG \
+  --environment $MI_ENV \
+  --image $MI_ACR.azurecr.io/$APP_NAME:latest \
+  --registry-server $MI_ACR.azurecr.io \
+  --registry-username $MI_ACR \
+  --registry-password $ACR_PASS \
+  --target-port 8000 \
+  --ingress external \
+  --min-replicas 0 \
+  --max-replicas 5 \
+  --set-env-vars API_KEY="sk_79ab32e41027826b7391efcdccccc92f4dc53c7f6cb93e7bfddaee8d15edff7a"
+
+
+  az containerapp create \
+  --name $APP_NAME \
+  --resource-group $MI_RG \
+  --environment $MI_ENV \
+  --image $MI_ACR.azurecr.io/$APP_NAME:latest \
+  --registry-server $MI_ACR.azurecr.io \
+  --registry-username $MI_ACR \
+  --registry-password $ACR_PASS \
+  --target-port 8000 \
+  --ingress external \
+  --min-replicas 0 \
+  --max-replicas 5 \
+  --env-vars API_KEY="sk_79ab32e41027826b7391efcdccccc92f4dc53c7f6cb93e7bfddaee8d15edff7a"
+
+az containerapp create \
+  --name $APP_NAME \
+  --resource-group $MI_RG \
+  --environment $MI_ENV \
+  --image $MI_ACR.azurecr.io/$APP_NAME:latest \
+  --registry-server $MI_ACR.azurecr.io \
+  --registry-username $MI_ACR \
+  --registry-password $ACR_PASS \
+  --target-port 8000 \
+  --ingress external \
+  --min-replicas 0 \
+  --max-replicas 5 \
+  --env-vars API_KEY="sk_79ab32e41027826b7391efcdccccc92f4dc53c7f6cb93e7bfddaee8d15edff7a"
+
+
+# Nombre acortado a 23 caracteres
+APP_NAME="ep-glc-pp-cluster-c0-v1"
+
+# 1. Re-construimos la imagen con el nuevo nombre corto
+az acr build \
+  --registry $MI_ACR \
+  --image $APP_NAME:latest \
+  https://github.com/luiscas03/glucosa-fastapi.git#main:models/postprandial_cluster_0
+
+# 2. Desplegamos el contenedor
+az containerapp create \
+  --name $APP_NAME \
+  --resource-group $MI_RG \
+  --environment $MI_ENV \
+  --image $MI_ACR.azurecr.io/$APP_NAME:latest \
+  --registry-server $MI_ACR.azurecr.io \
+  --registry-username $MI_ACR \
+  --registry-password $ACR_PASS \
+  --target-port 8000 \
+  --ingress external \
+  --min-replicas 0 \
+  --max-replicas 5 \
+  --env-vars API_KEY="sk_79ab32e41027826b7391efcdccccc92f4dc53c7f6cb93e7bfddaee8d15edff7a"
+
+
+
+  # Nombre acortado a 23 caracteres
+APP_NAME="ep-glc-pp-cluster-c1-v1"
+
+# 1. Construir la imagen
+az acr build \
+  --registry $MI_ACR \
+  --image $APP_NAME:latest \
+  https://github.com/luiscas03/glucosa-fastapi.git#main:models/postprandial_cluster_1
+
+# 2. Desplegar el contenedor
+az containerapp create \
+  --name $APP_NAME \
+  --resource-group $MI_RG \
+  --environment $MI_ENV \
+  --image $MI_ACR.azurecr.io/$APP_NAME:latest \
+  --registry-server $MI_ACR.azurecr.io \
+  --registry-username $MI_ACR \
+  --registry-password $ACR_PASS \
+  --target-port 8000 \
+  --ingress external \
+  --min-replicas 0 \
+  --max-replicas 5 \
+  --env-vars API_KEY="sk_79ab32e41027826b7391efcdccccc92f4dc53c7f6cb93e7bfddaee8d15edff7a"
+
+
+APP_NAME="ep-glc-cnnlstm-16p-v1"
+
+# 1. Construir la imagen apuntando directamente a la subcarpeta confirmada
+az acr build \
+  --registry $MI_ACR \
+  --image $APP_NAME:latest \
+  https://github.com/luiscas03/glucosa-fastapi.git#main:models/cnn_lstm_16p_clean_v1
+
+# 2. Desplegar el contenedor
+az containerapp create \
+  --name $APP_NAME \
+  --resource-group $MI_RG \
+  --environment $MI_ENV \
+  --image $MI_ACR.azurecr.io/$APP_NAME:latest \
+  --registry-server $MI_ACR.azurecr.io \
+  --registry-username $MI_ACR \
+  --registry-password $ACR_PASS \
+  --target-port 8000 \
+  --ingress external \
+  --min-replicas 0 \
+  --max-replicas 5 \
+  --env-vars API_KEY="sk_79ab32e41027826b7391efcdccccc92f4dc53c7f6cb93e7bfddaee8d15edff7a"
+
+
+
+  APP_NAME="ep-glc-cnnlstm-p001p002-v1"
+
+# 1. Construir la imagen
+az acr build \
+  --registry $MI_ACR \
+  --image $APP_NAME:latest \
+  https://github.com/luiscas03/glucosa-fastapi.git#main:models/cnn_lstm_p001_p002_v1
+
+# 2. Desplegar el contenedor
+az containerapp create \
+  --name $APP_NAME \
+  --resource-group $MI_RG \
+  --environment $MI_ENV \
+  --image $MI_ACR.azurecr.io/$APP_NAME:latest \
+  --registry-server $MI_ACR.azurecr.io \
+  --registry-username $MI_ACR \
+  --registry-password $ACR_PASS \
+  --target-port 8000 \
+  --ingress external \
+  --min-replicas 0 \
+  --max-replicas 5 \
+  --env-vars API_KEY="sk_79ab32e41027826b7391efcdccccc92f4dc53c7f6cb93e7bfddaee8d15edff7a"

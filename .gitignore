@@ -47,3 +47,6 @@ static/
 # Editors and IDEs
 .vscode/
 .idea/
+
+# Claude Code
+.claude/
