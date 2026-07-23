@@ -31,7 +31,7 @@ curl -fsSL https://get.docker.com | sh
 #    (el dominio debe estar en tu cuenta Cloudflare; el DNS lo crea el túnel solo)
 
 # 3. Repo + secretos
-git clone https://github.com/luiscas03/glucosa-fastapi.git
+git clone https://github.com/NepturaTech/glucosa-fastapi.git
 cd glucosa-fastapi/deploy_contabo
 cp .env.example .env
 nano .env        # pon DOMAIN, TUNNEL_TOKEN y las 5 keys

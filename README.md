@@ -33,8 +33,8 @@ Sigue estos pasos para poner en marcha el proyecto en tu entorno local.
 ### 2. Clonar el Repositorio
 
 ```bash
-git https://github.com/luiscas03/glucosa-fastapi.git
-cd RF_GlucosaMujeres
+git clone https://github.com/NepturaTech/glucosa-fastapi.git
+cd glucosa-fastapi
 ```
 
 

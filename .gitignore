@@ -1,5 +1,7 @@
 # Python virtual environments
 .venv/
+.venv-models/
+.venv-monitor/
 venv/
 env/
 **/.venv/
@@ -48,5 +50,4 @@ static/
 .vscode/
 .idea/
 
-# Claude Code
-.claude/
+
