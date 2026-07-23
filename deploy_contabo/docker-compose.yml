@@ -7,6 +7,11 @@ services:
     environment: { API_KEY: ${API_KEY_M19} }
     restart: unless-stopped
     expose: ["8000"]
+  m19_v2:                   # M19 v2 SOMBRA — validador de entrada + recalibración interna (pruebas)
+    build: ../models/m19_v2_postprandial
+    environment: { API_KEY: ${API_KEY_M19}, STRICT: "0", RECAL: "1" }
+    restart: unless-stopped
+    expose: ["8000"]
   m2:                       # Glucosa neural PPG (M2) — keras/TF
     build: ../models/cnn_lstm_16p_clean_v1
     environment: { API_KEY: ${API_KEY_M2} }
@@ -34,7 +39,7 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     expose: ["80"]
-    depends_on: [m19, m2, m5, m6, m3]
+    depends_on: [m19, m19_v2, m2, m5, m6, m3]
 
   cloudflared:              # túnel: hostname público -> http://caddy:80 (TLS en el edge)
     image: cloudflare/cloudflared:latest

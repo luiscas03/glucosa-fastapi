@@ -2,6 +2,7 @@
 # Una ruta por modelo. handle_path quita el prefijo: /m19/predict -> /predict.
 :80 {
 	handle_path /m19/* { reverse_proxy m19:8000 }
+	handle_path /m19_v2/* { reverse_proxy m19_v2:8000 }
 	handle_path /m2/*  { reverse_proxy m2:8000 }
 	handle_path /m5/*  { reverse_proxy m5:8000 }
 	handle_path /m6/*  { reverse_proxy m6:8000 }
